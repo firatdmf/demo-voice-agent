@@ -1,0 +1,463 @@
+AI Voice Sales Call Center — Digiturk Bayi (v1)
+Sayfa 1
+ AI Voice Sales Call Center (Digiturk Bayi)
+Teknik Dokuman v1 • 2026-02-22 • Tek dosya (katalog + state machine +
+entegrasyon payloadlari)
+Bu dokuman, ekibin sifirdan sistemi kurup calistirabilmesi icin hazirlandi. Hedef: gelen
+aramada AI, insan gibi konusarak satis akisini yonetir; paket secimi yaptirir; kritik bilgileri
+dogrulayarak toplar; SMS ile basvuru linki gonderir; tum veriyi CRM/DB'ye kaydeder.
+1. MVP ve Fazlar
+Phase-1 (MVP): Sadece satis. Paket secimi -> bilgi toplama -> SMS link -> kayit. 2-4
+paket ile basla, sonra 10+ pakete genislet. 1-2 CRM entegrasyonu + generic webhook.
+Phase-2: Daha fazla CRM/odeme saglayici, ariza/iptal/fatura gibi cagri tipleri, altyapi
+sorgulama, gelismis denetim/abuse korumalari.
+2. Davranis Kurallari (Konusma Kalitesi)
+• AI kendini 'yapay zeka' diye tanitmaz; acilis insan gibi: 'Merhabalar, nasil yardimci
+olabilirim?'
+• Her tur tek soru; 8-14 kelimeyi gecme. Uzun aciklama yok.
+• Kritik alanlar (TCKN, dogum tarihi, telefon, adres): parca parca al, geri oku, 'dogru
+mu?' diye onaylat.
+• 'Bilmiyorum / anlamiyorum / acelem var' durumunda karari kolaylastir: 2 secenek
+sun, varsayilan oneriyi netlestir.
+• Konu disi uzama: 2 kez nazik uyar, devam ederse gorusmeyi bitir (logla).
+• Kufur/agresyon: 1 uyar, tekrar ederse bitir.
+• STT guven dusukse: ayni soruyu farkli sor; 2 deneme sonra fallback/bitir veya
+(feature-flag) yetkiliye aktar.
+3. Sistem Mimarisi
+Bilesenler: Telephony (SIP/PBX veya CPaaS) -> Media Server (barge-in, denoise) ->
+Streaming STT -> Dialogue Orchestrator (state machine + kurallar) -> LLM (NLU+NLG,
+kisitli) -> Streaming TTS -> Business servisleri (Catalog/Pricing, Application Link, SMS,
+CRM) -> Observability.
+Katman
+Gorev
+Telephony Gateway
+Cagriyi alir, RTP akisini media server'a aktarir (Asterisk/FreeSWITCH veya CPaaS).
+Media Server
+Gercek zamanli ses, VAD/denoise/echo, TTS'i hatta basar, barge-in uygular.
+STT (Streaming)
+Transcript + confidence + timestamp. Aksan/gurultu toleransi icin hint/vocabulary.
+Orchestrator
+State machine, slot filling, dogrulamalar, tool/router. Final kararlar burada.
+LLM Modulu
+Intent/objection/offtopic siniflandirma + kisa dogal cumle uretimi. Katalog/fiyat uydurmaz.
+TTS (Streaming)
+Dogal Turkce ses uretimi, dusuk gecikme.
+Integrations
+Catalog, Application Link, SMS, CRM adapter, (ops) Fixture.
+AI Voice Sales Call Center — Digiturk Bayi (v1)
+Sayfa 2
+4. Akis: State Machine (Sales-First)
+Asagidaki state machine konfigi, MVP'nin cekirdegidir. Orchestrator bu konfige gore
+ilerler; LLM yalnizca metin uretir ve siniflandirir. Paket/fiyat verisi Catalog Service'ten
+gelir.
+4.1 State Machine Konfig (YAML)
+version: 1
+name: digiturk_sales_v1
+defaults:
+  language: tr
+  max_reprompt_per_slot: 2
+  max_offtopic_warnings: 2
+  stt_low_confidence_threshold: 0.62
+  stt_low_confidence_max_streak: 2
+  barge_in: true
+states:
+  GREET:
+    prompt: "Merhabalar, size nasil yardimci olabilirim?"
+    next: INTENT
+  INTENT:
+    goals: [detect_intent]
+    transitions:
+      - when: intent == "sales"
+        goto: PACKAGE_DISCOVERY
+      - when: intent == "internet_sales"
+        goto: INTERNET_PACKAGE_DISCOVERY
+      - when: intent == "offtopic"
+        goto: OFFTOPIC_POLICY
+      - default: PACKAGE_DISCOVERY
+  PACKAGE_DISCOVERY:
+    goals: [discover_preference, choose_delivery, choose_team_if_needed]
+    tools:
+      - catalog.list(category=kampanyali_paketler)
+    next: PACKAGE_RECOMMEND
+  PACKAGE_RECOMMEND:
+    goals: [recommend_package, explain_kutulu_kutusuz_if_asked, quote_price]
+    tools:
+      - catalog.get(package_id)
+    next: CONFIRM_CHOICE
+  CONFIRM_CHOICE:
+    goals: [confirm_package, confirm_payment_type]
+    next:
+      yes: COLLECT_IDENTITY
+      no: PACKAGE_DISCOVERY
+  COLLECT_IDENTITY:
+    slots: [name, surname, tckn, birth_date, phone]
+    validations: [tckn_checksum, date_parse, phone_parse]
+    next: COLLECT_ADDRESS_IF_NEEDED
+  COLLECT_ADDRESS_IF_NEEDED:
+    condition:
+      - if: selected_package.category == "internet_paketleri" or selected_package.delivery == "kutulu"
+        goto: COLLECT_ADDRESS
+      - else: VERIFY_SUMMARY
+  COLLECT_ADDRESS:
+    slots: [city, district, neighborhood, street, building_no, apartment_no, address_freeform]
+AI Voice Sales Call Center — Digiturk Bayi (v1)
+Sayfa 3
+    tools:
+      - address.normalize()
+      - infra.check_optional()
+    next: VERIFY_SUMMARY
+  VERIFY_SUMMARY:
+    prompt_template: "Soyle aldım: {summary}. Dogru mu?"
+    next:
+      yes: CREATE_LINK
+      no: CORRECT_DATA
+  CORRECT_DATA:
+    goals: [ask_which_field_wrong, recollect_specific_slots]
+    next: VERIFY_SUMMARY
+  CREATE_LINK:
+    tools:
+      - lead.create()
+      - application_link.create(ttl_minutes=30)
+      - sms.send(template=apply_link)
+    next: GUIDE_SMS
+  GUIDE_SMS:
+    prompt: "SMS'e girip linke tiklayin. Acilan sayfada 'Basvuruyu Tamamla'ya basin. Takildiginiz adimi soyleyin, tarif edeyim."
+    next: CLOSE_SUCCESS
+  OFFTOPIC_POLICY:
+    prompt: "Bu hat paket basvurulari icin. Paket islemiyle devam edelim mi?"
+    next:
+      continue: PACKAGE_DISCOVERY
+      refuse: CLOSE_FAIL
+  ABUSE_POLICY:
+    prompt: "Uygun bir dille devam edebilirsek yardimci olabilirim. Aksi halde gorusmeyi sonlandiracagim."
+    next:
+      continue: PACKAGE_DISCOVERY
+      refuse: CLOSE_FAIL
+  CLOSE_SUCCESS:
+    prompt: "Tamamdir. Basvurunuz icin linki SMS ile gonderdim. Iyi gunler."
+    terminal: true
+  CLOSE_FAIL:
+    prompt: "Bu sekilde devam edemiyorum. Iyi gunler."
+    terminal: true
+4.2 Slot Listesi ve Dogrulamalar
+Slot
+Format / Dogrulama
+Not
+name, surname
+UTF-8 metin
+Geri okuma ile onay.
+tckn
+11 hane + checksum
+2 deneme, sonra fallback/transfer.
+birth_date
+GG.AA.YYYY -> ISO
+Gelecek tarih olamaz; yas mantigi kontrol.
+phone
+TR GSM normalize (+90...)
+ANI varsa 'bu numara mi?' teyit.
+address
+parca parca (il/ilce/mahalle/...)
+Kutulu ve internet paketlerinde zorunlu.
+team
+enum (Fenerbahce,...)
+Taraftar paketlerinde zorunlu.
+AI Voice Sales Call Center — Digiturk Bayi (v1)
+Sayfa 4
+5. Paket Katalogu (JSON)
+Bu JSON dosyasi, digiturkspor.com ekran goruntulerinden cikarilmis bir baslangic
+katalogudur. Uretimde bunu admin panel/config ile yonetebilirsiniz. Fiyatlar/kampanyalar
+degisken oldugu icin katalog servisi tek kaynak olmali.
+5.1 Catalog JSON (ornek)
+{
+  "catalog_version": "2026-02-22",
+  "currency": "TRY",
+  "source": "digiturkspor.com (ekran goruntulerinden cikarim)",
+  "packages": [
+    {
+      "package_id": "FAN_UNBOXED",
+      "name": "Taraftar Paketi (Kutusuz)",
+      "category": "kampanyali_paketler",
+      "delivery": "kutusuz",
+      "platform": "beIN CONNECT",
+      "pricing": [
+        {
+          "payment_type": "credit_card_installment_12",
+          "amount_monthly": 449
+        }
+      ],
+      "notes": [
+        "beIN CONNECT ile aninda izleyin",
+        "Kredi kartli odeme"
+      ],
+      "options": {
+        "team_required": true,
+        "teams_supported": [
+          "Galatasaray",
+          "Fenerbahce",
+          "Besiktas",
+          "Trabzonspor"
+        ]
+      }
+    },
+    {
+      "package_id": "FAN_BOXED",
+      "name": "Taraftar Paketi (Kutulu)",
+      "category": "kutulu_paketler",
+      "delivery": "kutulu",
+      "platform": "kutu+kurulum",
+      "pricing": [
+        {
+          "payment_type": "credit_card_installment_12",
+          "amount_monthly": 549
+        },
+        {
+          "payment_type": "invoiced",
+          "amount_monthly": 669
+        }
+      ],
+      "notes": [
+        "beIN CONNECT ile aninda izleyin",
+        "Faturali veya Kredi Kartli odeme"
+      ],
+      "options": {
+        "team_required": true,
+        "teams_supported": [
+          "Galatasaray",
+          "Fenerbahce",
+          "Besiktas",
+AI Voice Sales Call Center — Digiturk Bayi (v1)
+Sayfa 5
+          "Trabzonspor"
+        ]
+      }
+    },
+    {
+      "package_id": "SPORTSTAR_UNBOXED",
+      "name": "Sporun Yildizi (Kutusuz)",
+      "category": "kampanyali_paketler",
+      "delivery": "kutusuz",
+      "platform": "beIN CONNECT",
+      "pricing": [
+        {
+          "payment_type": "credit_card_installment_12",
+          "amount_monthly": 569
+        }
+      ],
+      "notes": [
+        "beIN CONNECT ile aninda izleyin",
+        "Kredi kartli odeme"
+      ],
+      "options": {
+        "team_required": false
+      }
+    },
+    {
+      "package_id": "SPORTSTAR_BOXED_PRIORITY_PROVINCES",
+      "name": "Sporun Yildizi (Kutulu) - Kalkinmada Oncelikli Illere Ozel",
+      "category": "kampanyali_paketler",
+      "delivery": "kutulu",
+      "platform": "kutu+kurulum",
+      "pricing": [
+        {
+          "payment_type": "credit_card_installment_12",
+          "amount_monthly": 549
+        },
+        {
+          "payment_type": "invoiced",
+          "amount_monthly": 689
+        }
+      ],
+      "notes": [
+        "beIN CONNECT ile aninda izleyin",
+        "Faturali veya Kredi Kartli odeme"
+      ],
+      "eligibility": {
+        "rule": "priority_provinces_only",
+        "source": "site kampanya karti"
+      }
+    },
+    {
+      "package_id": "NET_ENT_FAN_UNBOXED",
+      "name": "Internet + Eglence + Taraftar (Kutusuz)",
+      "category": "internet_paketleri",
+      "delivery": "kutusuz",
+      "platform": "Digiturk Internet + beIN CONNECT",
+      "pricing": [
+        {
+          "payment_type": "monthly",
+          "amount_monthly": 599
+        }
+      ],
+      "notes": [
+        "Digiturk Internet ve beIN CONNECT bir arada",
+        "6 ay tum kanallar hediye"
+      ]
+AI Voice Sales Call Center — Digiturk Bayi (v1)
+Sayfa 6
+    },
+    {
+      "package_id": "NET_ENT_FAN_BOXED",
+      "name": "Internet + Eglence + Taraftar (Kutulu)",
+      "category": "internet_paketleri",
+      "delivery": "kutulu",
+      "platform": "Digiturk Internet + kutu+kurulum",
+      "pricing": [
+        {
+          "payment_type": "monthly",
+          "amount_monthly": 659
+        }
+      ],
+      "notes": [
+        "Limitsiz internet, Film, Dizi, Avrupa Ligleri",
+        "12 ay taraftar paketi hediye"
+      ]
+    },
+    {
+      "package_id": "NET_ENT_SPORTSTAR_UNBOXED",
+      "name": "Internet + Eglence + Sporun Yildizi (Kutusuz)",
+      "category": "internet_paketleri",
+      "delivery": "kutusuz",
+      "platform": "Digiturk Internet + beIN CONNECT",
+      "pricing": [
+        {
+          "payment_type": "monthly",
+          "amount_monthly": 999
+        }
+      ],
+      "notes": [
+        "Limitsiz internet, Film, Dizi, Avrupa Ligleri",
+        "12 ay taraftar paketi hediye"
+      ]
+    }
+  ],
+  "definitions": {
+    "kutusuz": "Kutu/kurulum olmadan, internet uzerinden uygulama ile izleme (beIN CONNECT).",
+    "kutulu": "Eve kurulum + uydu alicisi (kutu) ile TV'de izleme."
+  }
+}
+5.2 Kisa Aciklama Metinleri (AI'in kullanacagi)
+Kavram
+AI'in tek nefes aciklamasi
+Kutusuz
+Kutu yok, kurulum yok. Internet uzerinden beIN CONNECT ile izlenir.
+Kutulu
+Eve kurulum yapilir, uydu alicisi (kutu) gelir. TV'de izlenir.
+Kredi Kartina 12 Taksit
+Aylik odeme kredi kartindan taksitli alinir (web adiminda).
+Faturali
+Aylik odeme fatura ile ilerler. Kurulum/sozlesme adimi web linkte tamamlanir.
+5.3 Web Basvuru Akisi (ekran goruntusune gore)
+Akis
+Adimlar
+Taraftar Paketi (Kutusuz)
+Adim-1 Secim -> Adim-2 Takim secimi -> Adim-3 Bilgiler -> Adim-4 Tamamlandi
+Taraftar Paketi (Kutulu)
+Secim -> Takim -> Bilgiler (kimlik/telefon) -> (gerekiyorsa adres/kurulum adimi) -> Tamamlandi
+Internet Paketleri
+Adres (il/ilce/mahalle/sokak/bina/dairesi) -> Bilgiler -> Tamamlandi
+Web Form Alanlari (minimum set)
+AI Voice Sales Call Center — Digiturk Bayi (v1)
+Sayfa 7
+• Ad, Soyad
+• T.C. Kimlik No (11 hane)
+• Dogum Tarihi (GG.AA.YYYY)
+• Telefon (5XX XXX XX XX)
+• Internet/Kutulu icin Adres: il, ilce, mahalle, sokak/cadde, bina no, daire no (+ serbest
+adres metni opsiyonel)
+AI Voice Sales Call Center — Digiturk Bayi (v1)
+Sayfa 8
+6. Entegrasyonlar
+6.1 CRM Webhook Payload (ornek)
+Bu payload 'generic' olarak tasarlanir. Connector katmani bunu HubSpot/Zoho/Salesforce
+gibi sistemlere mapler. TCKN gibi hassas alanlar uretimde sifreli/sakli gidebilir; burada
+ornek olarak ENCRYPTED birakildi.
+{
+  "event": "lead.created",
+  "timestamp": "2026-02-22T00:00:00+03:00",
+  "call_session_id": "uuid",
+  "source": "voice_ai",
+  "customer": {
+    "name": "Ad",
+    "surname": "Soyad",
+    "phone": "+905321234567",
+    "tckn": "ENCRYPTED",
+    "birth_date": "1990-03-15"
+  },
+  "selection": {
+    "package_id": "FAN_UNBOXED",
+    "package_name": "Taraftar Paketi (Kutusuz)",
+    "team": "Fenerbahce",
+    "delivery": "kutusuz",
+    "payment_type": "credit_card_installment_12",
+    "amount_monthly": 449,
+    "currency": "TRY"
+  },
+  "application": {
+    "token": "token_or_hash",
+    "apply_url": "https://yourdomain.tld/apply?token=...",
+    "ttl_minutes": 30
+  },
+  "conversation": {
+    "summary": "Musteri bugun mac icin Fenerbahce taraftar paketi istedi. Kutusuz secildi. Bilgiler alindi, SMS ile basvuru linki gonderildi.",
+    "flags": {
+      "low_confidence_streak": 0,
+      "offtopic_warnings": 0,
+      "abuse": false
+    }
+  }
+}
+6.2 SMS Template'leri
+{
+  "apply_link": "Basvurunuzu tamamlamak icin linke tiklayin: {apply_url}  (30 dk icinde gecerlidir)",
+  "menu_fallback": "Devam icin yanitlayin: 1) Taraftar Paketi 2) Sporun Yildizi 3) Internet Paketleri"
+}
+6.3 Application Link Servisi (token mantigi)
+AI telefonda odeme almaz. 'Basvuruyu tamamla' adimi web linkte yapilir. Token tek
+kullanimlik ve kisa sureli olmalidir (onerilen 30 dk). Token DB'de hash olarak saklanir;
+plaintext sadece SMS ile gider.
+Endpoint
+Request
+Response
+POST /application-links
+{lead_id, ttl_minutes}
+{apply_url, token, expires_at}
+GET /application-links/{token}/status
+-
+{opened_at, completed_at, status}
+POST /sms/send
+{to, template, params}
+{message_id, status}
+AI Voice Sales Call Center — Digiturk Bayi (v1)
+Sayfa 9
+7. Orchestrator: Kural Setleri (MVP)
+7.1 Paket Oneri Kurali (basit)
+MVP'de en hizli yol: kural tablosu + catalog. Musteri 'mac' derse Taraftar; 'spor' derse
+Sporun Yildizi; 'internet' derse internet paketleri. Kararsizsa 2 soru sorup varsayilan
+oneriyi sun.
+# pseudo
+if intent == "internet_sales": show internet packages
+else:
+  if mentions_team or mentions("mac", "taraftar"): recommend FAN (ask kutulu/kutusuz)
+  elif mentions("sporun yildizi") or mentions("lig", "avrupa ligleri"): recommend SPORTSTAR (ask kutulu/kutusuz if available)
+  else: ask 1 question:
+      "Sadece mac mi, film/dizi de olsun mu?"
+      -> map answer to FAN vs SPORTSTAR
+7.2 Offtopic/Abuse Politikasi (net)
+offtopic:
+  warning_1: "Anliyorum. Bu hat paket basvurusu icin. Pakete gecelim mi?"
+  warning_2: "Paket islemiyle devam edelim; yoksa gorusmeyi sonlandiracagim."
+  action_after_2: "close_fail"
+abuse:
+  warning_1: "Uygun bir dille devam edebilirsek yardimci olabilirim."
+  action_after_1_repeat: "close_fail"
+low_confidence:
+  reprompt_1: "Sizi net duyamadim. Bir kez daha soyler misiniz?"
+  reprompt_2: "Son kez rica edeyim, daha yavas soyleyin."
+  action_after_2: "send_sms_fallback_or_close"
+8. Uretim Hazirlgi Checklist
+• Call recording (opsiyonel) + KV store: kalite icin faydali.
+• Metrics: link_sent_rate, completion_rate, avg_handle_time, tckn_retry_rate,
+low_confidence_rate, hangup_rate.
+• Security: token hash, PII encryption at rest, audit logs.
+• Rate limits: ayni numaradan spam arama, bot arama korumasi.
+• Admin: katalog guncelleme ve kampanya ac/kapat.

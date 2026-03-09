@@ -1,0 +1,79 @@
+{% extends "base.html" %}
+{% set active_page = "applications" %}
+
+{% block title %}Basvuru Detay - Digiturk Bayi Admin{% endblock %}
+
+{% block content %}
+<div class="d-flex align-items-center mb-4">
+    <a href="/admin/applications" class="btn btn-outline-secondary me-3"><i class="bi bi-arrow-left"></i></a>
+    <h2 class="mb-0">Basvuru Detay</h2>
+    <span class="badge badge-status-{{ app.status }} ms-3 fs-6">{{ app.status }}</span>
+</div>
+
+<div class="row g-4">
+    <div class="col-md-6">
+        <div class="card">
+            <div class="card-header"><h5 class="mb-0">Musteri Bilgileri</h5></div>
+            <div class="card-body">
+                {% if app.customer %}
+                <table class="table table-borderless mb-0">
+                    <tr><td class="text-muted" style="width:140px">Ad Soyad</td><td>{{ app.customer.name }} {{ app.customer.surname }}</td></tr>
+                    <tr><td class="text-muted">Telefon</td><td>{{ app.customer.phone }}</td></tr>
+                    <tr><td class="text-muted">Dogum Tarihi</td><td>{{ app.customer.birth_date or '-' }}</td></tr>
+                    <tr><td class="text-muted">Il / Ilce</td><td>{{ app.customer.city or '-' }} / {{ app.customer.district or '-' }}</td></tr>
+                    <tr><td class="text-muted">Mahalle</td><td>{{ app.customer.neighborhood or '-' }}</td></tr>
+                    <tr><td class="text-muted">Adres</td><td>{{ app.customer.address_freeform or '-' }}</td></tr>
+                </table>
+                {% else %}
+                <p class="text-muted">Musteri bilgisi bulunamadi.</p>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+    <div class="col-md-6">
+        <div class="card">
+            <div class="card-header"><h5 class="mb-0">Paket Bilgileri</h5></div>
+            <div class="card-body">
+                <table class="table table-borderless mb-0">
+                    <tr><td class="text-muted" style="width:140px">Paket</td><td>{{ app.package.name if app.package else '-' }}</td></tr>
+                    <tr><td class="text-muted">Takim</td><td>{{ app.team or '-' }}</td></tr>
+                    <tr><td class="text-muted">Teslimat</td><td>{{ app.delivery }}</td></tr>
+                    <tr><td class="text-muted">Odeme</td><td>{{ app.payment_type }}</td></tr>
+                    <tr><td class="text-muted">Basvuru Linki</td><td><a href="{{ app.apply_url }}" target="_blank">{{ app.apply_url or '-' }}</a></td></tr>
+                    <tr><td class="text-muted">Link Suresi</td><td>{{ app.token_expires_at.strftime('%d.%m.%Y %H:%M') if app.token_expires_at else '-' }}</td></tr>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+
+{% if app.sms_logs %}
+<div class="card mt-4">
+    <div class="card-header"><h5 class="mb-0">SMS Kayitlari</h5></div>
+    <div class="card-body p-0">
+        <table class="table table-hover mb-0">
+            <thead class="table-light">
+                <tr>
+                    <th>Tarih</th>
+                    <th>Telefon</th>
+                    <th>Sablon</th>
+                    <th>Mesaj</th>
+                    <th>Durum</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for sms in app.sms_logs %}
+                <tr>
+                    <td>{{ sms.sent_at.strftime('%d.%m.%Y %H:%M') if sms.sent_at else '-' }}</td>
+                    <td>{{ sms.to_phone }}</td>
+                    <td>{{ sms.template }}</td>
+                    <td><small>{{ sms.message_body }}</small></td>
+                    <td><span class="badge badge-status-{{ 'completed' if sms.status == 'sent' else 'failed' }}">{{ sms.status }}</span></td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endif %}
+{% endblock %}

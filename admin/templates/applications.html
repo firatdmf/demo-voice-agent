@@ -1,0 +1,76 @@
+{% extends "base.html" %}
+{% set active_page = "applications" %}
+
+{% block title %}Basvurular - Digiturk Bayi Admin{% endblock %}
+
+{% block content %}
+<h2 class="mb-4">Basvurular</h2>
+
+<div class="card">
+    <div class="card-body p-0">
+        <table class="table table-hover mb-0">
+            <thead class="table-light">
+                <tr>
+                    <th>Tarih</th>
+                    <th>Musteri</th>
+                    <th>Telefon</th>
+                    <th>Paket</th>
+                    <th>Takim</th>
+                    <th>Odeme</th>
+                    <th>Teslimat</th>
+                    <th>Durum</th>
+                    <th></th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for app in applications %}
+                <tr>
+                    <td>{{ app.created_at.strftime('%d.%m.%Y %H:%M') if app.created_at else '-' }}</td>
+                    <td>
+                        {% if app.customer %}
+                        {{ app.customer.name }} {{ app.customer.surname }}
+                        {% else %}
+                        -
+                        {% endif %}
+                    </td>
+                    <td>{{ app.customer.phone if app.customer else '-' }}</td>
+                    <td>{{ app.package.name if app.package else '-' }}</td>
+                    <td>{{ app.team or '-' }}</td>
+                    <td>
+                        {% if app.payment_type == 'credit_card_installment_12' %}
+                        <span class="badge bg-light text-dark">KK 12 Taksit</span>
+                        {% elif app.payment_type == 'invoiced' %}
+                        <span class="badge bg-light text-dark">Faturali</span>
+                        {% elif app.payment_type == 'monthly' %}
+                        <span class="badge bg-light text-dark">Aylik</span>
+                        {% else %}
+                        {{ app.payment_type }}
+                        {% endif %}
+                    </td>
+                    <td>
+                        {% if app.delivery == 'kutusuz' %}
+                        <span class="badge bg-light text-dark">Kutusuz</span>
+                        {% else %}
+                        <span class="badge bg-dark">Kutulu</span>
+                        {% endif %}
+                    </td>
+                    <td>
+                        <span class="badge badge-status-{{ app.status }}">{{ app.status }}</span>
+                    </td>
+                    <td>
+                        <a href="/admin/applications/{{ app.id }}" class="btn btn-sm btn-outline-primary">
+                            <i class="bi bi-eye"></i>
+                        </a>
+                    </td>
+                </tr>
+                {% endfor %}
+                {% if not applications %}
+                <tr>
+                    <td colspan="9" class="text-center text-muted py-4">Henuz basvuru yok</td>
+                </tr>
+                {% endif %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}

@@ -1,0 +1,310 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sesli Test - Digiturk Bayi</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" rel="stylesheet">
+    <style>
+        body { background: #1a1a2e; color: #fff; min-height: 100vh; }
+        .call-container { max-width: 500px; margin: 40px auto; }
+        .call-btn { width: 120px; height: 120px; border-radius: 50%; font-size: 2.5rem; border: none; transition: all 0.3s; }
+        .call-btn.idle { background: #28a745; color: #fff; }
+        .call-btn.idle:hover { background: #218838; transform: scale(1.05); }
+        .call-btn.active { background: #dc3545; color: #fff; animation: pulse 1.5s infinite; }
+        .call-btn.connecting { background: #ffc107; color: #000; }
+        @keyframes pulse { 0%,100% { box-shadow: 0 0 0 0 rgba(220,53,69,0.4); } 50% { box-shadow: 0 0 0 20px rgba(220,53,69,0); } }
+        .status-bar { background: rgba(255,255,255,0.1); border-radius: 12px; padding: 15px; margin-top: 20px; }
+        .transcript-box { background: rgba(255,255,255,0.05); border-radius: 12px; padding: 15px; margin-top: 20px; max-height: 400px; overflow-y: auto; }
+        .msg { padding: 8px 12px; margin: 4px 0; border-radius: 8px; font-size: 0.9rem; }
+        .msg.user { background: rgba(0,123,255,0.2); text-align: right; }
+        .msg.ai { background: rgba(40,167,69,0.2); }
+        .msg.system { background: rgba(255,193,7,0.1); color: #ffc107; font-size: 0.8rem; text-align: center; }
+        .visualizer { height: 60px; display: flex; align-items: center; justify-content: center; gap: 3px; margin-top: 15px; }
+        .visualizer .bar { width: 4px; background: #28a745; border-radius: 2px; transition: height 0.1s; }
+    </style>
+</head>
+<body>
+    <div class="call-container text-center">
+        <h3 class="mb-1"><i class="bi bi-broadcast"></i> Digiturk Bayi</h3>
+        <p class="text-muted">Sesli Test Arayuzu</p>
+
+        <div class="my-4">
+            <button id="callBtn" class="call-btn idle" onclick="toggleCall()">
+                <i class="bi bi-telephone-fill" id="callIcon"></i>
+            </button>
+        </div>
+
+        <div id="statusText" class="text-muted">Baslatmak icin tiklayin</div>
+
+        <div class="visualizer" id="visualizer" style="display:none;">
+            <!-- bars injected by JS -->
+        </div>
+
+        <div class="status-bar" id="stateBar" style="display:none;">
+            <small class="text-muted">State:</small>
+            <span id="currentState" class="badge bg-primary ms-2">GREET</span>
+            <small class="text-muted ms-3">Sure:</small>
+            <span id="callDuration" class="ms-1">00:00</span>
+        </div>
+
+        <div class="transcript-box" id="transcript" style="display:none;">
+            <div id="messages"></div>
+        </div>
+
+        <div class="mt-3">
+            <a href="/admin/" class="btn btn-outline-secondary btn-sm"><i class="bi bi-arrow-left"></i> Admin Panel</a>
+        </div>
+    </div>
+
+    <script>
+    let isActive = false;
+    let ws = null;
+    let mediaStream = null;
+    let audioContext = null;
+    let processor = null;
+    let analyser = null;
+    let startTime = null;
+    let durationInterval = null;
+    let playbackContext = null;
+    let audioQueue = [];
+    let isPlaying = false;
+    let currentSource = null;
+
+    const callBtn = document.getElementById('callBtn');
+    const callIcon = document.getElementById('callIcon');
+    const statusText = document.getElementById('statusText');
+    const stateBar = document.getElementById('stateBar');
+    const transcript = document.getElementById('transcript');
+    const messages = document.getElementById('messages');
+    const visualizer = document.getElementById('visualizer');
+    const currentState = document.getElementById('currentState');
+    const callDuration = document.getElementById('callDuration');
+
+    // Create visualizer bars
+    for (let i = 0; i < 20; i++) {
+        const bar = document.createElement('div');
+        bar.className = 'bar';
+        bar.style.height = '4px';
+        visualizer.appendChild(bar);
+    }
+
+    function addMessage(text, type) {
+        const div = document.createElement('div');
+        div.className = `msg ${type}`;
+        div.textContent = text;
+        messages.appendChild(div);
+        transcript.scrollTop = transcript.scrollHeight;
+    }
+
+    function updateDuration() {
+        if (!startTime) return;
+        const elapsed = Math.floor((Date.now() - startTime) / 1000);
+        const mins = String(Math.floor(elapsed / 60)).padStart(2, '0');
+        const secs = String(elapsed % 60).padStart(2, '0');
+        callDuration.textContent = `${mins}:${secs}`;
+    }
+
+    async function toggleCall() {
+        if (isActive) {
+            stopCall();
+        } else {
+            await startCall();
+        }
+    }
+
+    async function startCall() {
+        try {
+            callBtn.className = 'call-btn connecting';
+            statusText.textContent = 'Baglaniyor...';
+
+            // Get microphone
+            mediaStream = await navigator.mediaDevices.getUserMedia({ audio: true });
+
+            // Connect WebSocket
+            const wsProtocol = location.protocol === 'https:' ? 'wss:' : 'ws:';
+            ws = new WebSocket(`${wsProtocol}//${location.host}/test-call/ws`);
+
+            ws.onopen = () => {
+                isActive = true;
+                callBtn.className = 'call-btn active';
+                callIcon.className = 'bi bi-telephone-x-fill';
+                statusText.textContent = 'Gorusme aktif - konusun';
+                stateBar.style.display = 'block';
+                transcript.style.display = 'block';
+                visualizer.style.display = 'flex';
+                startTime = Date.now();
+                durationInterval = setInterval(updateDuration, 1000);
+                addMessage('Baglanti kuruldu', 'system');
+                startAudioCapture();
+            };
+
+            ws.onmessage = (event) => {
+                const data = JSON.parse(event.data);
+                handleServerMessage(data);
+            };
+
+            ws.onclose = () => {
+                if (isActive) {
+                    addMessage('Baglanti kapandi', 'system');
+                    stopCall();
+                }
+            };
+
+            ws.onerror = (err) => {
+                console.error('WebSocket error:', err);
+                addMessage('Baglanti hatasi', 'system');
+                stopCall();
+            };
+
+        } catch (err) {
+            console.error('Start call error:', err);
+            statusText.textContent = 'Hata: ' + err.message;
+            callBtn.className = 'call-btn idle';
+        }
+    }
+
+    function stopCall() {
+        isActive = false;
+        callBtn.className = 'call-btn idle';
+        callIcon.className = 'bi bi-telephone-fill';
+        statusText.textContent = 'Gorusme sonlandi';
+        visualizer.style.display = 'none';
+
+        if (durationInterval) clearInterval(durationInterval);
+        if (ws) { ws.close(); ws = null; }
+        if (processor) { processor.disconnect(); processor = null; }
+        if (audioContext) { audioContext.close(); audioContext = null; }
+        if (mediaStream) { mediaStream.getTracks().forEach(t => t.stop()); mediaStream = null; }
+        if (playbackContext) { playbackContext.close(); playbackContext = null; }
+        audioQueue = [];
+        isPlaying = false;
+    }
+
+    function startAudioCapture() {
+        audioContext = new AudioContext({ sampleRate: 24000 });
+        const source = audioContext.createMediaStreamSource(mediaStream);
+        analyser = audioContext.createAnalyser();
+        analyser.fftSize = 64;
+        source.connect(analyser);
+
+        // Audio processor - capture PCM and send to server
+        processor = audioContext.createScriptProcessor(4096, 1, 1);
+        source.connect(processor);
+        processor.connect(audioContext.destination);
+
+        processor.onaudioprocess = (e) => {
+            if (!isActive || !ws || ws.readyState !== WebSocket.OPEN) return;
+
+            const inputData = e.inputBuffer.getChannelData(0);
+            // Convert float32 to int16
+            const pcm16 = new Int16Array(inputData.length);
+            for (let i = 0; i < inputData.length; i++) {
+                const s = Math.max(-1, Math.min(1, inputData[i]));
+                pcm16[i] = s < 0 ? s * 0x8000 : s * 0x7FFF;
+            }
+            // Base64 encode
+            const bytes = new Uint8Array(pcm16.buffer);
+            const base64 = btoa(String.fromCharCode(...bytes));
+
+            ws.send(JSON.stringify({
+                type: 'audio',
+                audio: base64
+            }));
+        };
+
+        // Visualizer update
+        updateVisualizer();
+
+        // Playback context
+        playbackContext = new AudioContext({ sampleRate: 24000 });
+    }
+
+    function updateVisualizer() {
+        if (!analyser || !isActive) return;
+        const dataArray = new Uint8Array(analyser.frequencyBinCount);
+        analyser.getByteFrequencyData(dataArray);
+        const bars = visualizer.querySelectorAll('.bar');
+        bars.forEach((bar, i) => {
+            const value = dataArray[i] || 0;
+            bar.style.height = Math.max(4, value / 4) + 'px';
+        });
+        requestAnimationFrame(updateVisualizer);
+    }
+
+    function handleServerMessage(data) {
+        switch (data.type) {
+            case 'audio':
+                playAudio(data.audio);
+                break;
+            case 'transcript_ai':
+                addMessage(data.text, 'ai');
+                break;
+            case 'transcript_user':
+                addMessage(data.text, 'user');
+                break;
+            case 'state_change':
+                currentState.textContent = data.state;
+                addMessage(`State: ${data.state}`, 'system');
+                break;
+            case 'clear_audio':
+                // Interrupt - immediately stop current playback + clear queue
+                audioQueue = [];
+                isPlaying = false;
+                if (currentSource) {
+                    try { currentSource.onended = null; currentSource.stop(); } catch(e) {}
+                    currentSource = null;
+                }
+                break;
+            case 'function_call':
+                addMessage(`${data.name}(...)`, 'system');
+                break;
+            case 'error':
+                addMessage(`Hata: ${data.message}`, 'system');
+                break;
+        }
+    }
+
+    function playAudio(base64Audio) {
+        if (!playbackContext) return;
+        // Decode base64 to PCM16
+        const binaryStr = atob(base64Audio);
+        const bytes = new Uint8Array(binaryStr.length);
+        for (let i = 0; i < binaryStr.length; i++) {
+            bytes[i] = binaryStr.charCodeAt(i);
+        }
+        const pcm16 = new Int16Array(bytes.buffer);
+
+        // Convert to float32
+        const float32 = new Float32Array(pcm16.length);
+        for (let i = 0; i < pcm16.length; i++) {
+            float32[i] = pcm16[i] / 32768.0;
+        }
+
+        // Create audio buffer and play
+        const buffer = playbackContext.createBuffer(1, float32.length, 24000);
+        buffer.getChannelData(0).set(float32);
+
+        audioQueue.push(buffer);
+        if (!isPlaying) playNextBuffer();
+    }
+
+    function playNextBuffer() {
+        if (audioQueue.length === 0) {
+            isPlaying = false;
+            currentSource = null;
+            return;
+        }
+        isPlaying = true;
+        const buffer = audioQueue.shift();
+        const source = playbackContext.createBufferSource();
+        currentSource = source;
+        source.buffer = buffer;
+        source.connect(playbackContext.destination);
+        source.onended = playNextBuffer;
+        source.start();
+    }
+    </script>
+</body>
+</html>

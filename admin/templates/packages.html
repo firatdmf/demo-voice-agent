@@ -1,0 +1,108 @@
+{% extends "base.html" %}
+{% set active_page = "packages" %}
+
+{% block title %}Paketler - Digiturk Bayi Admin{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h2>Paketler</h2>
+</div>
+
+{% set categories = {
+    'kampanyali_paketler': 'Kampanyali Paketler',
+    'kutulu_paketler': 'Kutulu Paketler',
+    'internet_paketleri': 'Internet Paketleri'
+} %}
+
+{% for cat_key, cat_name in categories.items() %}
+{% set cat_packages = packages | selectattr('category', 'equalto', cat_key) | list %}
+{% if cat_packages %}
+<h4 class="mt-4 mb-3">
+    <i class="bi bi-tag-fill text-primary"></i> {{ cat_name }}
+</h4>
+<div class="row g-3 mb-4">
+    {% for pkg in cat_packages %}
+    <div class="col-md-6 col-lg-4">
+        <div class="card h-100 {% if not pkg.is_active %}border-secondary opacity-50{% endif %}">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <strong>{{ pkg.name }}</strong>
+                {% if pkg.is_active %}
+                <span class="badge bg-success">Aktif</span>
+                {% else %}
+                <span class="badge bg-secondary">Pasif</span>
+                {% endif %}
+            </div>
+            <div class="card-body">
+                <p class="mb-1"><small class="text-muted">ID: {{ pkg.package_id }}</small></p>
+                <p class="mb-1">
+                    <i class="bi bi-box"></i>
+                    {% if pkg.delivery == 'kutusuz' %}
+                    <span class="badge bg-light text-dark">Kutusuz</span>
+                    {% else %}
+                    <span class="badge bg-dark">Kutulu</span>
+                    {% endif %}
+                </p>
+                <p class="mb-1"><i class="bi bi-display"></i> {{ pkg.platform or '-' }}</p>
+
+                {% if pkg.team_required %}
+                <p class="mb-1">
+                    <i class="bi bi-people"></i> Takim secimi gerekli
+                    <br><small class="text-muted">{{ pkg.teams_supported | join(', ') }}</small>
+                </p>
+                {% endif %}
+
+                <hr>
+                <h6>Fiyatlandirma</h6>
+                {% for price in pkg.pricing %}
+                <div class="d-flex justify-content-between">
+                    <span class="text-muted small">
+                        {% if price.payment_type == 'credit_card_installment_12' %}
+                        Kredi Karti 12 Taksit
+                        {% elif price.payment_type == 'invoiced' %}
+                        Faturali
+                        {% elif price.payment_type == 'monthly' %}
+                        Aylik
+                        {% else %}
+                        {{ price.payment_type }}
+                        {% endif %}
+                    </span>
+                    <strong>{{ price.amount_monthly }} {{ price.currency }}/ay</strong>
+                </div>
+                {% endfor %}
+
+                {% if pkg.notes %}
+                <hr>
+                <ul class="list-unstyled small text-muted mb-0">
+                    {% for note in pkg.notes %}
+                    <li><i class="bi bi-info-circle"></i> {{ note }}</li>
+                    {% endfor %}
+                </ul>
+                {% endif %}
+            </div>
+            <div class="card-footer">
+                <form method="POST" action="/admin/packages/{{ pkg.id }}/toggle" class="d-inline">
+                    {% if pkg.is_active %}
+                    <button type="submit" class="btn btn-sm btn-outline-danger">
+                        <i class="bi bi-pause-circle"></i> Pasif Yap
+                    </button>
+                    {% else %}
+                    <button type="submit" class="btn btn-sm btn-outline-success">
+                        <i class="bi bi-play-circle"></i> Aktif Yap
+                    </button>
+                    {% endif %}
+                </form>
+            </div>
+        </div>
+    </div>
+    {% endfor %}
+</div>
+{% endif %}
+{% endfor %}
+
+{% if not packages %}
+<div class="alert alert-info">
+    <i class="bi bi-info-circle"></i> Henuz paket eklenmemis.
+    <code>python db/seed.py</code> ile baslangic paketlerini yukleyebilirsiniz.
+</div>
+{% endif %}
+{% endblock %}

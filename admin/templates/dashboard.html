@@ -1,0 +1,134 @@
+{% extends "base.html" %}
+{% set active_page = "dashboard" %}
+
+{% block title %}Dashboard - Digiturk Bayi Admin{% endblock %}
+
+{% block content %}
+<h2 class="mb-4">Dashboard</h2>
+
+<!-- Stats Row -->
+<div class="row g-4 mb-4">
+    <div class="col-md-3">
+        <div class="card stat-card bg-primary text-white">
+            <div class="card-body">
+                <div class="d-flex justify-content-between">
+                    <div>
+                        <div class="text-white-50 small">Toplam Cagri</div>
+                        <div class="stat-number">{{ total_calls }}</div>
+                    </div>
+                    <i class="bi bi-telephone-fill fs-1 opacity-25"></i>
+                </div>
+                <div class="small mt-2">{{ active_calls }} aktif</div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card stat-card bg-success text-white">
+            <div class="card-body">
+                <div class="d-flex justify-content-between">
+                    <div>
+                        <div class="text-white-50 small">Toplam Basvuru</div>
+                        <div class="stat-number">{{ total_applications }}</div>
+                    </div>
+                    <i class="bi bi-file-earmark-check-fill fs-1 opacity-25"></i>
+                </div>
+                <div class="small mt-2">{{ pending_applications }} beklemede, {{ link_sent }} link gonderildi</div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card stat-card bg-info text-white">
+            <div class="card-body">
+                <div class="d-flex justify-content-between">
+                    <div>
+                        <div class="text-white-50 small">Tamamlanma Orani</div>
+                        <div class="stat-number">%{{ completion_rate }}</div>
+                    </div>
+                    <i class="bi bi-graph-up-arrow fs-1 opacity-25"></i>
+                </div>
+                <div class="small mt-2">{{ completed_applications }} tamamlandi</div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card stat-card bg-warning text-dark">
+            <div class="card-body">
+                <div class="d-flex justify-content-between">
+                    <div>
+                        <div class="small">Musteriler / Paketler</div>
+                        <div class="stat-number">{{ total_customers }}</div>
+                    </div>
+                    <i class="bi bi-people-fill fs-1 opacity-25"></i>
+                </div>
+                <div class="small mt-2">{{ total_packages }} aktif paket</div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Recent Activity -->
+<div class="row g-4">
+    <div class="col-md-6">
+        <div class="card">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h5 class="mb-0">Son Cagrilar</h5>
+                <a href="/admin/calls" class="btn btn-sm btn-outline-primary">Tumunu Gor</a>
+            </div>
+            <div class="card-body p-0">
+                <table class="table table-hover mb-0">
+                    <thead>
+                        <tr>
+                            <th>Telefon</th>
+                            <th>Durum</th>
+                            <th>Tarih</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for call in recent_calls %}
+                        <tr>
+                            <td>{{ call.caller_phone or '-' }}</td>
+                            <td><span class="badge badge-status-{{ call.status }}">{{ call.status }}</span></td>
+                            <td>{{ call.started_at.strftime('%d.%m %H:%M') if call.started_at else '-' }}</td>
+                        </tr>
+                        {% endfor %}
+                        {% if not recent_calls %}
+                        <tr><td colspan="3" class="text-center text-muted py-3">Henuz cagri yok</td></tr>
+                        {% endif %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-6">
+        <div class="card">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h5 class="mb-0">Son Basvurular</h5>
+                <a href="/admin/applications" class="btn btn-sm btn-outline-primary">Tumunu Gor</a>
+            </div>
+            <div class="card-body p-0">
+                <table class="table table-hover mb-0">
+                    <thead>
+                        <tr>
+                            <th>Musteri</th>
+                            <th>Paket</th>
+                            <th>Durum</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for app in recent_apps %}
+                        <tr>
+                            <td>{{ app.customer.name }} {{ app.customer.surname }}</td>
+                            <td>{{ app.package.name if app.package else '-' }}</td>
+                            <td><span class="badge badge-status-{{ app.status }}">{{ app.status }}</span></td>
+                        </tr>
+                        {% endfor %}
+                        {% if not recent_apps %}
+                        <tr><td colspan="3" class="text-center text-muted py-3">Henuz basvuru yok</td></tr>
+                        {% endif %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

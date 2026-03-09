@@ -1,0 +1,68 @@
+{% extends "base.html" %}
+{% set active_page = "calls" %}
+
+{% block title %}Cagrilar - Digiturk Bayi Admin{% endblock %}
+
+{% block content %}
+<h2 class="mb-4">Cagri Kayitlari</h2>
+
+<div class="card">
+    <div class="card-body p-0">
+        <table class="table table-hover mb-0">
+            <thead class="table-light">
+                <tr>
+                    <th>Baslangic</th>
+                    <th>Bitis</th>
+                    <th>Arayan</th>
+                    <th>Durum</th>
+                    <th>Flags</th>
+                    <th>State Gecisleri</th>
+                    <th>Ozet</th>
+                    <th></th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for call in calls %}
+                <tr>
+                    <td>{{ call.started_at.strftime('%d.%m.%Y %H:%M') if call.started_at else '-' }}</td>
+                    <td>{{ call.ended_at.strftime('%H:%M') if call.ended_at else '-' }}</td>
+                    <td>{{ call.caller_phone or '-' }}</td>
+                    <td>
+                        <span class="badge badge-status-{{ call.status }}">{{ call.status }}</span>
+                    </td>
+                    <td>
+                        {% if call.flags %}
+                            {% for flag in call.flags %}
+                            <span class="badge bg-warning text-dark">{{ flag }}</span>
+                            {% endfor %}
+                        {% else %}
+                        -
+                        {% endif %}
+                    </td>
+                    <td>
+                        {% if call.state_history %}
+                        <small>{{ call.state_history | length }} gecis</small>
+                        {% else %}
+                        -
+                        {% endif %}
+                    </td>
+                    <td>
+                        <small class="text-muted">{{ (call.conversation_summary or '-')[:80] }}{% if call.conversation_summary and call.conversation_summary|length > 80 %}...{% endif %}</small>
+                    </td>
+                    <td>
+                        <a href="/admin/calls/{{ call.id }}" class="btn btn-sm btn-outline-primary">
+                            <i class="bi bi-eye"></i>
+                        </a>
+                    </td>
+                </tr>
+                {% endfor %}
+                {% if not calls %}
+                <tr>
+                    <td colspan="8" class="text-center text-muted py-4">Henuz cagri kaydi yok</td>
+                </tr>
+                {% endif %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}
