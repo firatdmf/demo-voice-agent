@@ -1,0 +1,256 @@
+{% extends "base.html" %}
+{% set active_page = "analytics" %}
+
+{% block title %}Analitik - Digiturk CRM{% endblock %}
+{% block page_title %}Analitik & Veri Analizi{% endblock %}
+
+{% block content %}
+<!-- KPI Kartları -->
+<div class="row g-4 mb-4">
+    <div class="col-xl-3 col-md-6">
+        <div class="stat-card">
+            <div class="stat-glow" style="background: var(--accent-blue);"></div>
+            <div class="stat-icon" style="background: #eff6ff; color: var(--accent-blue);">
+                <i class="bi bi-telephone-inbound-fill"></i>
+            </div>
+            <div class="stat-label">Toplam Çağrı</div>
+            <div class="stat-value">{{ total_calls }}</div>
+            <div class="stat-change">{{ successful_calls }} başarılı &middot; {{ failed_calls }} başarısız</div>
+        </div>
+    </div>
+    <div class="col-xl-3 col-md-6">
+        <div class="stat-card">
+            <div class="stat-glow" style="background: var(--accent-green);"></div>
+            <div class="stat-icon" style="background: #ecfdf5; color: var(--accent-green);">
+                <i class="bi bi-bullseye"></i>
+            </div>
+            <div class="stat-label">Dönüşüm Oranı</div>
+            <div class="stat-value">%{{ conversion_rate }}</div>
+            <div class="stat-change">Çağrı &rarr; Başvuru dönüşümü</div>
+        </div>
+    </div>
+    <div class="col-xl-3 col-md-6">
+        <div class="stat-card">
+            <div class="stat-glow" style="background: var(--accent-purple);"></div>
+            <div class="stat-icon" style="background: #f5f3ff; color: var(--accent-purple);">
+                <i class="bi bi-box-seam-fill"></i>
+            </div>
+            <div class="stat-label">En Popüler Paket</div>
+            <div class="stat-value" style="font-size:1.2rem;">{{ top_package_name or '-' }}</div>
+            <div class="stat-change">{{ top_package_count }} başvuru</div>
+        </div>
+    </div>
+    <div class="col-xl-3 col-md-6">
+        <div class="stat-card">
+            <div class="stat-glow" style="background: var(--accent-orange);"></div>
+            <div class="stat-icon" style="background: #fffbeb; color: var(--accent-orange);">
+                <i class="bi bi-trophy-fill"></i>
+            </div>
+            <div class="stat-label">En Popüler Takım</div>
+            <div class="stat-value" style="font-size:1.4rem;">{{ top_team or '-' }}</div>
+            <div class="stat-change">{{ top_team_count }} müşteri</div>
+        </div>
+    </div>
+</div>
+
+<!-- Grafikler Satır 1 -->
+<div class="row g-4 mb-4">
+    <div class="col-xl-5">
+        <div class="card h-100">
+            <div class="card-header">
+                <i class="bi bi-trophy-fill me-2" style="color:var(--accent-orange)"></i>Takım Tercihleri Dağılımı
+            </div>
+            <div class="card-body chart-container" style="height:350px">
+                <canvas id="teamPieChart"></canvas>
+            </div>
+        </div>
+    </div>
+    <div class="col-xl-7">
+        <div class="card h-100">
+            <div class="card-header">
+                <i class="bi bi-box-seam-fill me-2" style="color:var(--accent-purple)"></i>Paket Talep Dağılımı
+            </div>
+            <div class="card-body chart-container" style="height:350px">
+                <canvas id="packageDemandChart"></canvas>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Grafikler Satır 2 -->
+<div class="row g-4 mb-4">
+    <div class="col-xl-7">
+        <div class="card h-100">
+            <div class="card-header">
+                <i class="bi bi-graph-up me-2" style="color:var(--accent-green)"></i>Çağrı & Başvuru Trendi (Son 30 Gün)
+            </div>
+            <div class="card-body chart-container" style="height:350px">
+                <canvas id="trendChart"></canvas>
+            </div>
+        </div>
+    </div>
+    <div class="col-xl-5">
+        <div class="card h-100">
+            <div class="card-header">
+                <i class="bi bi-credit-card-fill me-2" style="color:var(--accent-cyan)"></i>Ödeme Yöntemi Dağılımı
+            </div>
+            <div class="card-body chart-container" style="height:350px">
+                <canvas id="paymentChart"></canvas>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Grafikler Satır 3 -->
+<div class="row g-4 mb-4">
+    <div class="col-xl-6">
+        <div class="card h-100">
+            <div class="card-header">
+                <i class="bi bi-box me-2" style="color:var(--accent-pink)"></i>Teslimat Tercihi
+            </div>
+            <div class="card-body chart-container" style="height:300px">
+                <canvas id="deliveryChart"></canvas>
+            </div>
+        </div>
+    </div>
+    <div class="col-xl-6">
+        <div class="card h-100">
+            <div class="card-header">
+                <i class="bi bi-geo-alt-fill me-2" style="color:var(--accent-orange)"></i>Şehir Bazında Müşteriler (İlk 10)
+            </div>
+            <div class="card-body chart-container" style="height:300px">
+                <canvas id="cityChart"></canvas>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Takım Detay Tablosu -->
+<div class="card mb-4">
+    <div class="card-header">
+        <i class="bi bi-table me-2" style="color:var(--accent-blue)"></i>Takım Bazında Detay Analiz
+    </div>
+    <div class="card-body p-0">
+        <table class="table table-hover">
+            <thead>
+                <tr>
+                    <th>Takım</th>
+                    <th>Başvuru Sayısı</th>
+                    <th>Oran</th>
+                    <th>Görsel</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for team_name, count in team_distribution.items() %}
+                {% set pct = (count / team_total * 100) if team_total > 0 else 0 %}
+                <tr>
+                    <td>
+                        <div class="d-flex align-items-center gap-2">
+                            <div style="width:10px;height:10px;border-radius:50%;background:
+                                {% if team_name == 'Galatasaray' %}#FFD700
+                                {% elif team_name == 'Fenerbahce' %}#1E3A5F
+                                {% elif team_name == 'Besiktas' %}#555
+                                {% elif team_name == 'Trabzonspor' %}#8B0000
+                                {% else %}#64748b{% endif %}
+                            "></div>
+                            <span style="font-weight:600">{{ team_name }}</span>
+                        </div>
+                    </td>
+                    <td>{{ count }}</td>
+                    <td>%{{ "%.1f"|format(pct) }}</td>
+                    <td style="width:40%">
+                        <div style="height:8px;background:#f1f5f9;border-radius:4px;overflow:hidden">
+                            <div style="height:100%;width:{{ pct }}%;border-radius:4px;background:
+                                {% if team_name == 'Galatasaray' %}linear-gradient(90deg,#FFD700,#FF8C00)
+                                {% elif team_name == 'Fenerbahce' %}linear-gradient(90deg,#1E3A5F,#3b82f6)
+                                {% elif team_name == 'Besiktas' %}linear-gradient(90deg,#333,#888)
+                                {% elif team_name == 'Trabzonspor' %}linear-gradient(90deg,#8B0000,#DC143C)
+                                {% else %}linear-gradient(90deg,#475569,#94a3b8){% endif %}
+                            "></div>
+                        </div>
+                    </td>
+                </tr>
+                {% endfor %}
+                {% if not team_distribution %}
+                <tr><td colspan="4" class="text-center text-muted py-4">Henüz takım verisi yok</td></tr>
+                {% endif %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"></script>
+<script>
+Chart.defaults.color = '#94a3b8';
+Chart.defaults.borderColor = '#f1f5f9';
+
+const teamData = {{ team_distribution | tojson }};
+const teamColors = { 'Galatasaray': '#FFD700', 'Fenerbahce': '#1E3A5F', 'Besiktas': '#666', 'Trabzonspor': '#8B0000' };
+new Chart(document.getElementById('teamPieChart'), {
+    type: 'doughnut',
+    data: {
+        labels: Object.keys(teamData).length > 0 ? Object.keys(teamData) : ['Henüz veri yok'],
+        datasets: [{ data: Object.values(teamData).length > 0 ? Object.values(teamData) : [1],
+            backgroundColor: Object.keys(teamData).length > 0 ? Object.keys(teamData).map(t => teamColors[t] || '#94a3b8') : ['#e2e8f0'],
+            borderWidth: 2, borderColor: '#fff', hoverOffset: 12 }]
+    },
+    options: { responsive: true, maintainAspectRatio: false, cutout: '60%',
+        plugins: { legend: { position: 'bottom', labels: { padding: 16, usePointStyle: true, font: { size: 13, weight: 600 } } } } }
+});
+
+const pkgData = {{ package_demand | tojson }};
+new Chart(document.getElementById('packageDemandChart'), {
+    type: 'bar',
+    data: { labels: Object.keys(pkgData), datasets: [{ label: 'Talep Sayısı', data: Object.values(pkgData),
+        backgroundColor: ['#3b82f6','#8b5cf6','#06b6d4','#10b981','#f59e0b','#ec4899','#ef4444'],
+        borderRadius: 8, borderSkipped: false, barPercentage: 0.55 }] },
+    options: { responsive: true, maintainAspectRatio: false, indexAxis: 'y',
+        plugins: { legend: { display: false } },
+        scales: { x: { beginAtZero: true, grid: { color: '#f1f5f9' }, ticks: { stepSize: 1 } }, y: { grid: { display: false }, ticks: { font: { size: 11 } } } } }
+});
+
+const trendData = {{ daily_trend | tojson }};
+new Chart(document.getElementById('trendChart'), {
+    type: 'line',
+    data: { labels: trendData.dates, datasets: [
+        { label: 'Çağrılar', data: trendData.calls, borderColor: '#3b82f6', backgroundColor: 'rgba(59,130,246,0.08)', fill: true, tension: 0.4, pointRadius: 2, pointHoverRadius: 6, borderWidth: 2 },
+        { label: 'Başvurular', data: trendData.applications, borderColor: '#10b981', backgroundColor: 'rgba(16,185,129,0.08)', fill: true, tension: 0.4, pointRadius: 2, pointHoverRadius: 6, borderWidth: 2 }
+    ] },
+    options: { responsive: true, maintainAspectRatio: false,
+        plugins: { legend: { labels: { usePointStyle: true, padding: 20 } } },
+        scales: { y: { beginAtZero: true, grid: { color: '#f1f5f9' }, ticks: { stepSize: 1 } }, x: { grid: { display: false }, ticks: { maxRotation: 45, font: { size: 10 } } } } }
+});
+
+const payData = {{ payment_distribution | tojson }};
+const payLabels = { 'credit_card_installment_12': 'KK 12 Taksit', 'invoiced': 'Faturalı', 'monthly': 'Aylık' };
+new Chart(document.getElementById('paymentChart'), {
+    type: 'polarArea',
+    data: { labels: Object.keys(payData).map(k => payLabels[k] || k), datasets: [{ data: Object.values(payData),
+        backgroundColor: ['rgba(59,130,246,0.6)','rgba(139,92,246,0.6)','rgba(6,182,212,0.6)'], borderWidth: 2, borderColor: '#fff' }] },
+    options: { responsive: true, maintainAspectRatio: false,
+        plugins: { legend: { position: 'bottom', labels: { usePointStyle: true, padding: 16, font: { size: 12 } } } },
+        scales: { r: { grid: { color: '#f1f5f9' }, ticks: { display: false } } } }
+});
+
+const delData = {{ delivery_distribution | tojson }};
+new Chart(document.getElementById('deliveryChart'), {
+    type: 'doughnut',
+    data: { labels: Object.keys(delData).map(k => k === 'kutusuz' ? 'Kutusuz' : 'Kutulu'), datasets: [{ data: Object.values(delData),
+        backgroundColor: ['#06b6d4','#8b5cf6'], borderWidth: 2, borderColor: '#fff', hoverOffset: 8 }] },
+    options: { responsive: true, maintainAspectRatio: false, cutout: '55%',
+        plugins: { legend: { position: 'bottom', labels: { usePointStyle: true, padding: 16, font: { size: 13 } } } } }
+});
+
+const cityData = {{ city_distribution | tojson }};
+new Chart(document.getElementById('cityChart'), {
+    type: 'bar',
+    data: { labels: Object.keys(cityData), datasets: [{ label: 'Müşteri', data: Object.values(cityData),
+        backgroundColor: '#f59e0b', borderRadius: 6, borderSkipped: false, barPercentage: 0.6 }] },
+    options: { responsive: true, maintainAspectRatio: false,
+        plugins: { legend: { display: false } },
+        scales: { y: { beginAtZero: true, grid: { color: '#f1f5f9' }, ticks: { stepSize: 1 } }, x: { grid: { display: false } } } }
+});
+</script>
+{% endblock %}

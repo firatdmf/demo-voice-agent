@@ -25,7 +25,7 @@ USE_ELEVENLABS = False
 
 # OpenAI Realtime API
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY", "")
-_OPENAI_MODEL = "gpt-realtime-mini" if USE_ELEVENLABS else "gpt-realtime-1.5"
+_OPENAI_MODEL = "gpt-realtime-1.5" if USE_ELEVENLABS else "gpt-realtime-1.5"
 OPENAI_REALTIME_URL = f"wss://api.openai.com/v1/realtime?model={_OPENAI_MODEL}"
 
 # ElevenLabs TTS - flash model for lowest latency (disabled when USE_ELEVENLABS=False)
@@ -119,9 +119,9 @@ class BrowserOpenAIBridge:
                         "format": {"type": "audio/pcm", "rate": 24000},
                         "turn_detection": {
                             "type": "server_vad",
-                            "threshold": 0.99,
-                            "prefix_padding_ms": 300,
-                            "silence_duration_ms": 400,
+                            "threshold": 0.75,
+                            "prefix_padding_ms": 500,
+                            "silence_duration_ms": 500,
                         },
                         "transcription": {"model": "whisper-1"},
                     },

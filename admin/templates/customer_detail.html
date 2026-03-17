@@ -1,0 +1,170 @@
+{% extends "base.html" %}
+{% set active_page = "customers" %}
+
+{% block title %}{{ customer.name }} {{ customer.surname }} - Digiturk CRM{% endblock %}
+{% block page_title %}Müşteri Detay{% endblock %}
+
+{% block content %}
+<div class="d-flex align-items-center gap-3 mb-4">
+    <a href="/admin/customers" class="btn-glass btn btn-sm"><i class="bi bi-arrow-left"></i></a>
+    <div style="width:48px;height:48px;border-radius:14px;background:linear-gradient(135deg,#ecfeff,#f5f3ff);display:flex;align-items:center;justify-content:center;font-weight:800;font-size:1.1rem;color:var(--accent-blue)">
+        {{ customer.name[0] }}{{ customer.surname[0] }}
+    </div>
+    <div>
+        <h4 class="mb-0" style="font-weight:700">{{ customer.name }} {{ customer.surname }}</h4>
+        <code style="color:var(--accent-blue)">{{ customer.phone }}</code>
+    </div>
+</div>
+
+<div class="row g-4 mb-4">
+    <!-- Kişisel Bilgiler -->
+    <div class="col-xl-6">
+        <div class="card h-100">
+            <div class="card-header">
+                <i class="bi bi-person-fill me-2" style="color:var(--accent-cyan)"></i>Kişisel Bilgiler
+            </div>
+            <div class="card-body">
+                <table class="table table-borderless mb-0">
+                    <tr><td class="text-muted" style="width:150px">Ad Soyad</td><td style="font-weight:600">{{ customer.name }} {{ customer.surname }}</td></tr>
+                    <tr><td class="text-muted">Telefon</td><td><code style="color:var(--accent-blue)">{{ customer.phone }}</code></td></tr>
+                    <tr><td class="text-muted">Doğum Tarihi</td><td>{{ customer.birth_date.strftime('%d.%m.%Y') if customer.birth_date else '-' }}</td></tr>
+                    <tr><td class="text-muted">TC Kimlik</td><td>{{ '••••••' + customer.tckn[-5:] if customer.tckn and customer.tckn|length > 5 else 'Kayıtlı' if customer.tckn else '-' }}</td></tr>
+                    <tr><td class="text-muted">Kayıt Tarihi</td><td>{{ customer.created_at.strftime('%d.%m.%Y %H:%M') if customer.created_at else '-' }}</td></tr>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- Adres Bilgileri -->
+    <div class="col-xl-6">
+        <div class="card h-100">
+            <div class="card-header">
+                <i class="bi bi-geo-alt-fill me-2" style="color:var(--accent-orange)"></i>Adres Bilgileri
+            </div>
+            <div class="card-body">
+                <table class="table table-borderless mb-0">
+                    <tr><td class="text-muted" style="width:150px">İl</td><td>{{ customer.city or '-' }}</td></tr>
+                    <tr><td class="text-muted">İlçe</td><td>{{ customer.district or '-' }}</td></tr>
+                    <tr><td class="text-muted">Mahalle</td><td>{{ customer.neighborhood or '-' }}</td></tr>
+                    <tr><td class="text-muted">Sokak</td><td>{{ customer.street or '-' }}</td></tr>
+                    <tr><td class="text-muted">Bina / Daire No</td><td>{{ customer.building_no or '-' }} / {{ customer.apartment_no or '-' }}</td></tr>
+                    {% if customer.address_freeform %}
+                    <tr><td class="text-muted">Serbest Adres</td><td>{{ customer.address_freeform }}</td></tr>
+                    {% endif %}
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- AI Müşteri Analizi -->
+<div class="card mb-4">
+    <div class="card-header d-flex justify-content-between align-items-center">
+        <span><i class="bi bi-robot me-2" style="color:var(--accent-purple)"></i>AI Müşteri Analizi & Satın Alma Eğilimi</span>
+        <div class="d-flex align-items-center gap-2">
+            {% if customer.ai_analysis_at %}
+            <small class="text-muted">Son analiz: {{ customer.ai_analysis_at.strftime('%d.%m.%Y %H:%M') }}</small>
+            {% endif %}
+            <form method="POST" action="/admin/customers/{{ customer.id }}/analyze" class="d-inline">
+                <button type="submit" class="btn btn-primary btn-sm" id="analyzeBtn">
+                    <i class="bi bi-stars me-1"></i>{{ 'Yeniden Analiz Et' if customer.ai_notes else 'AI ile Analiz Et' }}
+                </button>
+            </form>
+        </div>
+    </div>
+    <div class="card-body">
+        {% if customer.ai_notes %}
+        <div style="line-height:1.8;white-space:pre-wrap;font-size:0.9rem">{{ customer.ai_notes }}</div>
+        {% else %}
+        <div class="text-center py-5">
+            <i class="bi bi-robot fs-1 d-block mb-3" style="color:#cbd5e1"></i>
+            <p class="text-muted mb-3">Bu müşteri için henüz AI analizi yapılmamış.</p>
+            <p class="text-muted" style="font-size:0.85rem">Yukarıdaki <strong>"AI ile Analiz Et"</strong> butonuna tıklayarak yapay zekanın bu müşteri hakkında<br>satın alma eğilimi, profil analizi ve önerileri oluşturmasını sağlayabilirsiniz.</p>
+        </div>
+        {% endif %}
+    </div>
+</div>
+
+<!-- Başvurular -->
+{% if customer.applications %}
+<div class="card mb-4">
+    <div class="card-header">
+        <i class="bi bi-file-earmark-text-fill me-2" style="color:var(--accent-green)"></i>Başvuruları ({{ customer.applications | length }})
+    </div>
+    <div class="card-body p-0">
+        <table class="table table-hover">
+            <thead>
+                <tr>
+                    <th>Tarih</th>
+                    <th>Paket</th>
+                    <th>Takım</th>
+                    <th>Ödeme</th>
+                    <th>Teslimat</th>
+                    <th>Durum</th>
+                    <th></th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for app in customer.applications %}
+                <tr>
+                    <td class="text-muted">{{ app.created_at.strftime('%d.%m.%Y %H:%M') if app.created_at else '-' }}</td>
+                    <td style="font-weight:500">{{ app.package.name if app.package else '-' }}</td>
+                    <td>
+                        {% if app.team %}
+                        <span class="badge-status" style="
+                            {% if app.team == 'Galatasaray' %}background:#fffbeb;color:#b45309;border:1px solid #fde68a
+                            {% elif app.team == 'Fenerbahce' %}background:#eff6ff;color:#1e40af;border:1px solid #bfdbfe
+                            {% elif app.team == 'Besiktas' %}background:#f8fafc;color:#334155;border:1px solid #e2e8f0
+                            {% elif app.team == 'Trabzonspor' %}background:#fef2f2;color:#991b1b;border:1px solid #fecaca
+                            {% else %}background:#f8fafc;color:#64748b;border:1px solid #e2e8f0{% endif %}
+                        ">{{ app.team }}</span>
+                        {% else %}-{% endif %}
+                    </td>
+                    <td>
+                        {% if app.payment_type == 'credit_card_installment_12' %}KK 12 Taksit
+                        {% elif app.payment_type == 'invoiced' %}Faturalı
+                        {% elif app.payment_type == 'monthly' %}Aylık
+                        {% else %}{{ app.payment_type }}{% endif %}
+                    </td>
+                    <td>{{ 'Kutusuz' if app.delivery == 'kutusuz' else 'Kutulu' }}</td>
+                    <td><span class="badge-status badge-status-{{ app.status }}">{{ app.status | status_tr }}</span></td>
+                    <td><a href="/admin/applications/{{ app.id }}" class="btn-glass btn btn-sm"><i class="bi bi-eye"></i></a></td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endif %}
+
+<!-- Çağrı Geçmişi -->
+{% if customer.call_sessions %}
+<div class="card">
+    <div class="card-header">
+        <i class="bi bi-telephone-fill me-2" style="color:var(--accent-blue)"></i>Çağrı Geçmişi ({{ customer.call_sessions | length }})
+    </div>
+    <div class="card-body p-0">
+        <table class="table table-hover">
+            <thead>
+                <tr>
+                    <th>Tarih</th>
+                    <th>Durum</th>
+                    <th>Özet</th>
+                    <th></th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for call in customer.call_sessions %}
+                <tr>
+                    <td class="text-muted">{{ call.started_at.strftime('%d.%m.%Y %H:%M') if call.started_at else '-' }}</td>
+                    <td><span class="badge-status badge-status-{{ call.status }}">{{ call.status | status_tr }}</span></td>
+                    <td><small class="text-muted">{{ (call.conversation_summary or '-')[:100] }}{% if call.conversation_summary and call.conversation_summary|length > 100 %}...{% endif %}</small></td>
+                    <td><a href="/admin/calls/{{ call.id }}" class="btn-glass btn btn-sm"><i class="bi bi-eye"></i></a></td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endif %}
+{% endblock %}

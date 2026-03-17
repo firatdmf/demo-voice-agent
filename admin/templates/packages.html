@@ -1,93 +1,100 @@
 {% extends "base.html" %}
 {% set active_page = "packages" %}
 
-{% block title %}Paketler - Digiturk Bayi Admin{% endblock %}
+{% block title %}Paketler - Digiturk CRM{% endblock %}
+{% block page_title %}Paketler{% endblock %}
 
 {% block content %}
 <div class="d-flex justify-content-between align-items-center mb-4">
-    <h2>Paketler</h2>
+    <div></div>
+    <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#addPackageModal">
+        <i class="bi bi-plus-lg me-1"></i>Yeni Paket Ekle
+    </button>
 </div>
 
 {% set categories = {
-    'kampanyali_paketler': 'Kampanyali Paketler',
-    'kutulu_paketler': 'Kutulu Paketler',
-    'internet_paketleri': 'Internet Paketleri'
+    'kampanyali_paketler': {'name': 'Kampanyalı Paketler', 'icon': 'bi-lightning-charge-fill', 'color': 'var(--accent-orange)'},
+    'kutulu_paketler': {'name': 'Kutulu Paketler', 'icon': 'bi-box-fill', 'color': 'var(--accent-purple)'},
+    'internet_paketleri': {'name': 'İnternet Paketleri', 'icon': 'bi-wifi', 'color': 'var(--accent-cyan)'}
 } %}
 
-{% for cat_key, cat_name in categories.items() %}
+{% for cat_key, cat_info in categories.items() %}
 {% set cat_packages = packages | selectattr('category', 'equalto', cat_key) | list %}
 {% if cat_packages %}
-<h4 class="mt-4 mb-3">
-    <i class="bi bi-tag-fill text-primary"></i> {{ cat_name }}
-</h4>
-<div class="row g-3 mb-4">
+<div class="d-flex align-items-center gap-2 mb-3 {% if not loop.first %}mt-5{% endif %}">
+    <div style="width:36px;height:36px;border-radius:10px;background:#f8fafc;display:flex;align-items:center;justify-content:center">
+        <i class="bi {{ cat_info.icon }}" style="color:{{ cat_info.color }}"></i>
+    </div>
+    <h5 class="mb-0" style="font-weight:700">{{ cat_info.name }}</h5>
+    <span class="badge-status" style="background:#f8fafc;color:var(--text-muted);border:1px solid var(--border-color)">{{ cat_packages | length }} paket</span>
+</div>
+<div class="row g-4 mb-4">
     {% for pkg in cat_packages %}
-    <div class="col-md-6 col-lg-4">
-        <div class="card h-100 {% if not pkg.is_active %}border-secondary opacity-50{% endif %}">
+    <div class="col-xl-4 col-md-6">
+        <div class="card h-100 {% if not pkg.is_active %}opacity-50{% endif %}">
             <div class="card-header d-flex justify-content-between align-items-center">
-                <strong>{{ pkg.name }}</strong>
+                <strong style="font-size:0.95rem">{{ pkg.name }}</strong>
                 {% if pkg.is_active %}
-                <span class="badge bg-success">Aktif</span>
+                <span class="badge-status badge-status-active">Aktif</span>
                 {% else %}
-                <span class="badge bg-secondary">Pasif</span>
+                <span class="badge-status badge-status-expired">Pasif</span>
                 {% endif %}
             </div>
             <div class="card-body">
-                <p class="mb-1"><small class="text-muted">ID: {{ pkg.package_id }}</small></p>
-                <p class="mb-1">
-                    <i class="bi bi-box"></i>
+                <div class="mb-2"><small class="text-muted">ID: <code style="color:var(--accent-blue)">{{ pkg.package_id }}</code></small></div>
+
+                <div class="d-flex gap-2 mb-3">
                     {% if pkg.delivery == 'kutusuz' %}
-                    <span class="badge bg-light text-dark">Kutusuz</span>
+                    <span class="badge-status" style="background:#ecfeff;color:#0891b2;border:1px solid #a5f3fc">Kutusuz</span>
                     {% else %}
-                    <span class="badge bg-dark">Kutulu</span>
+                    <span class="badge-status" style="background:#f5f3ff;color:#7c3aed;border:1px solid #ddd6fe">Kutulu</span>
                     {% endif %}
-                </p>
-                <p class="mb-1"><i class="bi bi-display"></i> {{ pkg.platform or '-' }}</p>
+                    <span class="badge-status" style="background:#f8fafc;color:var(--text-secondary);border:1px solid #e2e8f0">{{ pkg.platform or '-' }}</span>
+                </div>
 
                 {% if pkg.team_required %}
-                <p class="mb-1">
-                    <i class="bi bi-people"></i> Takim secimi gerekli
-                    <br><small class="text-muted">{{ pkg.teams_supported | join(', ') }}</small>
-                </p>
+                <div class="mb-3 p-2" style="background:#fffbeb;border:1px solid #fde68a;border-radius:8px">
+                    <small style="color:#b45309"><i class="bi bi-trophy me-1"></i>Takım seçimi gerekli</small>
+                    <div class="mt-1 d-flex gap-1 flex-wrap">
+                        {% for team in pkg.teams_supported %}
+                        <span class="badge-status" style="background:#f8fafc;color:var(--text-secondary);border:1px solid #e2e8f0;font-size:0.65rem">{{ team }}</span>
+                        {% endfor %}
+                    </div>
+                </div>
                 {% endif %}
 
-                <hr>
-                <h6>Fiyatlandirma</h6>
-                {% for price in pkg.pricing %}
-                <div class="d-flex justify-content-between">
-                    <span class="text-muted small">
-                        {% if price.payment_type == 'credit_card_installment_12' %}
-                        Kredi Karti 12 Taksit
-                        {% elif price.payment_type == 'invoiced' %}
-                        Faturali
-                        {% elif price.payment_type == 'monthly' %}
-                        Aylik
-                        {% else %}
-                        {{ price.payment_type }}
-                        {% endif %}
-                    </span>
-                    <strong>{{ price.amount_monthly }} {{ price.currency }}/ay</strong>
+                <div style="border-top:1px solid var(--border-color);padding-top:12px">
+                    <small class="text-muted text-uppercase" style="font-weight:600;letter-spacing:0.5px">Fiyatlandırma</small>
+                    {% for price in pkg.pricing %}
+                    <div class="d-flex justify-content-between align-items-center mt-2">
+                        <span class="text-muted" style="font-size:0.8rem">
+                            {% if price.payment_type == 'credit_card_installment_12' %}KK 12 Taksit
+                            {% elif price.payment_type == 'invoiced' %}Faturalı
+                            {% elif price.payment_type == 'monthly' %}Aylık
+                            {% else %}{{ price.payment_type }}{% endif %}
+                        </span>
+                        <strong style="color:var(--accent-green)">{{ price.amount_monthly }} {{ price.currency }}/ay</strong>
+                    </div>
+                    {% endfor %}
                 </div>
-                {% endfor %}
 
                 {% if pkg.notes %}
-                <hr>
-                <ul class="list-unstyled small text-muted mb-0">
+                <div style="border-top:1px solid var(--border-color);padding-top:12px;margin-top:12px">
                     {% for note in pkg.notes %}
-                    <li><i class="bi bi-info-circle"></i> {{ note }}</li>
+                    <div class="text-muted" style="font-size:0.78rem"><i class="bi bi-info-circle me-1"></i>{{ note }}</div>
                     {% endfor %}
-                </ul>
+                </div>
                 {% endif %}
             </div>
-            <div class="card-footer">
+            <div class="card-footer" style="background:transparent;border-top:1px solid var(--border-color);padding:12px 20px">
                 <form method="POST" action="/admin/packages/{{ pkg.id }}/toggle" class="d-inline">
                     {% if pkg.is_active %}
-                    <button type="submit" class="btn btn-sm btn-outline-danger">
-                        <i class="bi bi-pause-circle"></i> Pasif Yap
+                    <button type="submit" class="btn btn-sm" style="background:#fef2f2;color:#dc2626;border:1px solid #fecaca">
+                        <i class="bi bi-pause-circle me-1"></i>Pasif Yap
                     </button>
                     {% else %}
-                    <button type="submit" class="btn btn-sm btn-outline-success">
-                        <i class="bi bi-play-circle"></i> Aktif Yap
+                    <button type="submit" class="btn btn-sm" style="background:#ecfdf5;color:#059669;border:1px solid #a7f3d0">
+                        <i class="bi bi-play-circle me-1"></i>Aktif Yap
                     </button>
                     {% endif %}
                 </form>
@@ -100,9 +107,86 @@
 {% endfor %}
 
 {% if not packages %}
-<div class="alert alert-info">
-    <i class="bi bi-info-circle"></i> Henuz paket eklenmemis.
-    <code>python db/seed.py</code> ile baslangic paketlerini yukleyebilirsiniz.
+<div class="card">
+    <div class="card-body text-center py-5">
+        <i class="bi bi-box-seam fs-1 d-block mb-3 opacity-25"></i>
+        <p class="text-muted">Henüz paket eklenmemiş.</p>
+        <code>python db/seed.py</code> ile başlangıç paketlerini yükleyebilirsiniz.
+    </div>
 </div>
 {% endif %}
+
+<!-- Paket Ekleme Modal -->
+<div class="modal fade" id="addPackageModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title"><i class="bi bi-box-seam-fill me-2" style="color:var(--accent-purple)"></i>Yeni Paket Ekle</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <form method="POST" action="/admin/packages/add">
+                <div class="modal-body">
+                    <div class="row g-3">
+                        <div class="col-md-6">
+                            <label class="form-label">Paket ID</label>
+                            <input type="text" name="package_id" class="form-control" placeholder="ör: SUPER_SPORT" required>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">Paket Adı</label>
+                            <input type="text" name="name" class="form-control" placeholder="ör: Süper Spor Paketi" required>
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label">Kategori</label>
+                            <select name="category" class="form-select" required>
+                                <option value="kampanyali_paketler">Kampanyalı Paketler</option>
+                                <option value="kutulu_paketler">Kutulu Paketler</option>
+                                <option value="internet_paketleri">İnternet Paketleri</option>
+                            </select>
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label">Teslimat</label>
+                            <select name="delivery" class="form-select" required>
+                                <option value="kutusuz">Kutusuz</option>
+                                <option value="kutulu">Kutulu</option>
+                            </select>
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label">Platform</label>
+                            <input type="text" name="platform" class="form-control" placeholder="ör: beIN CONNECT">
+                        </div>
+                        <div class="col-md-6">
+                            <div class="form-check mt-2">
+                                <input class="form-check-input" type="checkbox" name="team_required" id="teamRequiredPkg" value="1">
+                                <label class="form-check-label" for="teamRequiredPkg">Takım seçimi gerekli</label>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">Desteklenen Takımlar</label>
+                            <input type="text" name="teams_supported" class="form-control" placeholder="Galatasaray,Fenerbahçe,Beşiktaş,Trabzonspor">
+                            <small class="text-muted">Virgülle ayırın</small>
+                        </div>
+                        <div class="col-12"><hr></div>
+                        <div class="col-12"><strong>Fiyatlandırma</strong></div>
+                        <div class="col-md-4">
+                            <label class="form-label">KK 12 Taksit (TL/ay)</label>
+                            <input type="number" step="0.01" name="price_cc" class="form-control" placeholder="0.00">
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label">Faturalı (TL/ay)</label>
+                            <input type="number" step="0.01" name="price_invoiced" class="form-control" placeholder="0.00">
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label">Aylık (TL/ay)</label>
+                            <input type="number" step="0.01" name="price_monthly" class="form-control" placeholder="0.00">
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-glass" data-bs-dismiss="modal">İptal</button>
+                    <button type="submit" class="btn btn-primary"><i class="bi bi-plus-lg me-1"></i>Paket Ekle</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
 {% endblock %}

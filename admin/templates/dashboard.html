@@ -1,129 +1,153 @@
 {% extends "base.html" %}
 {% set active_page = "dashboard" %}
 
-{% block title %}Dashboard - Digiturk Bayi Admin{% endblock %}
+{% block title %}Gösterge Paneli - Digiturk CRM{% endblock %}
+{% block page_title %}Gösterge Paneli{% endblock %}
 
 {% block content %}
-<h2 class="mb-4">Dashboard</h2>
-
-<!-- Stats Row -->
+<!-- KPI Kartları -->
 <div class="row g-4 mb-4">
-    <div class="col-md-3">
-        <div class="card stat-card bg-primary text-white">
-            <div class="card-body">
-                <div class="d-flex justify-content-between">
-                    <div>
-                        <div class="text-white-50 small">Toplam Cagri</div>
-                        <div class="stat-number">{{ total_calls }}</div>
-                    </div>
-                    <i class="bi bi-telephone-fill fs-1 opacity-25"></i>
-                </div>
-                <div class="small mt-2">{{ active_calls }} aktif</div>
+    <div class="col-xl-3 col-md-6">
+        <div class="stat-card">
+            <div class="stat-glow" style="background: var(--accent-blue);"></div>
+            <div class="stat-icon" style="background: #eff6ff; color: var(--accent-blue);">
+                <i class="bi bi-telephone-fill"></i>
+            </div>
+            <div class="stat-label">Toplam Çağrı</div>
+            <div class="stat-value">{{ total_calls }}</div>
+            <div class="stat-change"><i class="bi bi-circle-fill text-success" style="font-size:0.5rem"></i> {{ active_calls }} aktif çağrı</div>
+        </div>
+    </div>
+    <div class="col-xl-3 col-md-6">
+        <div class="stat-card">
+            <div class="stat-glow" style="background: var(--accent-green);"></div>
+            <div class="stat-icon" style="background: #ecfdf5; color: var(--accent-green);">
+                <i class="bi bi-file-earmark-check-fill"></i>
+            </div>
+            <div class="stat-label">Toplam Başvuru</div>
+            <div class="stat-value">{{ total_applications }}</div>
+            <div class="stat-change">{{ pending_applications }} beklemede &middot; {{ link_sent }} link gönderildi</div>
+        </div>
+    </div>
+    <div class="col-xl-3 col-md-6">
+        <div class="stat-card">
+            <div class="stat-glow" style="background: var(--accent-purple);"></div>
+            <div class="stat-icon" style="background: #f5f3ff; color: var(--accent-purple);">
+                <i class="bi bi-graph-up-arrow"></i>
+            </div>
+            <div class="stat-label">Tamamlanma Oranı</div>
+            <div class="stat-value">%{{ completion_rate }}</div>
+            <div class="stat-change">{{ completed_applications }} başarılı başvuru</div>
+        </div>
+    </div>
+    <div class="col-xl-3 col-md-6">
+        <div class="stat-card">
+            <div class="stat-glow" style="background: var(--accent-cyan);"></div>
+            <div class="stat-icon" style="background: #ecfeff; color: var(--accent-cyan);">
+                <i class="bi bi-people-fill"></i>
+            </div>
+            <div class="stat-label">Müşteriler</div>
+            <div class="stat-value">{{ total_customers }}</div>
+            <div class="stat-change">{{ total_packages }} aktif paket</div>
+        </div>
+    </div>
+</div>
+
+<!-- Grafikler -->
+<div class="row g-4 mb-4">
+    <div class="col-xl-8">
+        <div class="card">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <span><i class="bi bi-bar-chart-fill me-2" style="color:var(--accent-blue)"></i>Başvuru Durumu Dağılımı</span>
+            </div>
+            <div class="card-body chart-container" style="height:320px">
+                <canvas id="applicationStatusChart"></canvas>
             </div>
         </div>
     </div>
-    <div class="col-md-3">
-        <div class="card stat-card bg-success text-white">
-            <div class="card-body">
-                <div class="d-flex justify-content-between">
-                    <div>
-                        <div class="text-white-50 small">Toplam Basvuru</div>
-                        <div class="stat-number">{{ total_applications }}</div>
-                    </div>
-                    <i class="bi bi-file-earmark-check-fill fs-1 opacity-25"></i>
-                </div>
-                <div class="small mt-2">{{ pending_applications }} beklemede, {{ link_sent }} link gonderildi</div>
+    <div class="col-xl-4">
+        <div class="card">
+            <div class="card-header">
+                <i class="bi bi-trophy-fill me-2" style="color:var(--accent-orange)"></i>Takım Dağılımı
             </div>
-        </div>
-    </div>
-    <div class="col-md-3">
-        <div class="card stat-card bg-info text-white">
-            <div class="card-body">
-                <div class="d-flex justify-content-between">
-                    <div>
-                        <div class="text-white-50 small">Tamamlanma Orani</div>
-                        <div class="stat-number">%{{ completion_rate }}</div>
-                    </div>
-                    <i class="bi bi-graph-up-arrow fs-1 opacity-25"></i>
-                </div>
-                <div class="small mt-2">{{ completed_applications }} tamamlandi</div>
-            </div>
-        </div>
-    </div>
-    <div class="col-md-3">
-        <div class="card stat-card bg-warning text-dark">
-            <div class="card-body">
-                <div class="d-flex justify-content-between">
-                    <div>
-                        <div class="small">Musteriler / Paketler</div>
-                        <div class="stat-number">{{ total_customers }}</div>
-                    </div>
-                    <i class="bi bi-people-fill fs-1 opacity-25"></i>
-                </div>
-                <div class="small mt-2">{{ total_packages }} aktif paket</div>
+            <div class="card-body chart-container" style="height:320px">
+                <canvas id="teamChart"></canvas>
             </div>
         </div>
     </div>
 </div>
 
-<!-- Recent Activity -->
-<div class="row g-4">
-    <div class="col-md-6">
-        <div class="card">
+<!-- Hızlı İşlemler + Tablolar -->
+<div class="row g-4 mb-4">
+    <div class="col-xl-4">
+        <div class="card h-100">
+            <div class="card-header">
+                <i class="bi bi-plus-circle-fill me-2" style="color:var(--accent-purple)"></i>Hızlı İşlemler
+            </div>
+            <div class="card-body d-flex flex-column gap-3">
+                <a href="/admin/packages#addPackage" class="btn btn-primary w-100" data-bs-toggle="modal" data-bs-target="#addPackageModal">
+                    <i class="bi bi-box-seam me-2"></i>Yeni Paket Ekle
+                </a>
+                <a href="/admin/customers" class="btn btn-glass w-100">
+                    <i class="bi bi-people me-2"></i>Müşterileri Görüntüle
+                </a>
+                <a href="/admin/analytics" class="btn btn-glass w-100">
+                    <i class="bi bi-graph-up me-2"></i>Analitik Raporu
+                </a>
+                <a href="/test-call" target="_blank" class="btn btn-glass w-100">
+                    <i class="bi bi-mic me-2"></i>Test Araması Başlat
+                </a>
+            </div>
+        </div>
+    </div>
+    <div class="col-xl-4">
+        <div class="card h-100">
             <div class="card-header d-flex justify-content-between align-items-center">
-                <h5 class="mb-0">Son Cagrilar</h5>
-                <a href="/admin/calls" class="btn btn-sm btn-outline-primary">Tumunu Gor</a>
+                <span><i class="bi bi-telephone-fill me-2" style="color:var(--accent-blue)"></i>Son Çağrılar</span>
+                <a href="/admin/calls" class="btn-glass" style="font-size:0.75rem"><i class="bi bi-arrow-right"></i></a>
             </div>
             <div class="card-body p-0">
-                <table class="table table-hover mb-0">
+                <table class="table table-hover">
                     <thead>
-                        <tr>
-                            <th>Telefon</th>
-                            <th>Durum</th>
-                            <th>Tarih</th>
-                        </tr>
+                        <tr><th>Telefon</th><th>Durum</th><th>Tarih</th></tr>
                     </thead>
                     <tbody>
                         {% for call in recent_calls %}
                         <tr>
-                            <td>{{ call.caller_phone or '-' }}</td>
-                            <td><span class="badge badge-status-{{ call.status }}">{{ call.status }}</span></td>
-                            <td>{{ call.started_at.strftime('%d.%m %H:%M') if call.started_at else '-' }}</td>
+                            <td><code style="color:var(--accent-blue)">{{ call.caller_phone or 'Bilinmiyor' }}</code></td>
+                            <td><span class="badge-status badge-status-{{ call.status }}">{{ call.status | status_tr }}</span></td>
+                            <td class="text-muted">{{ call.started_at.strftime('%d.%m %H:%M') if call.started_at else '-' }}</td>
                         </tr>
                         {% endfor %}
                         {% if not recent_calls %}
-                        <tr><td colspan="3" class="text-center text-muted py-3">Henuz cagri yok</td></tr>
+                        <tr><td colspan="3" class="text-center text-muted py-4">Henüz çağrı yok</td></tr>
                         {% endif %}
                     </tbody>
                 </table>
             </div>
         </div>
     </div>
-    <div class="col-md-6">
-        <div class="card">
+    <div class="col-xl-4">
+        <div class="card h-100">
             <div class="card-header d-flex justify-content-between align-items-center">
-                <h5 class="mb-0">Son Basvurular</h5>
-                <a href="/admin/applications" class="btn btn-sm btn-outline-primary">Tumunu Gor</a>
+                <span><i class="bi bi-file-earmark-text-fill me-2" style="color:var(--accent-green)"></i>Son Başvurular</span>
+                <a href="/admin/applications" class="btn-glass" style="font-size:0.75rem"><i class="bi bi-arrow-right"></i></a>
             </div>
             <div class="card-body p-0">
-                <table class="table table-hover mb-0">
+                <table class="table table-hover">
                     <thead>
-                        <tr>
-                            <th>Musteri</th>
-                            <th>Paket</th>
-                            <th>Durum</th>
-                        </tr>
+                        <tr><th>Müşteri</th><th>Takım</th><th>Durum</th></tr>
                     </thead>
                     <tbody>
                         {% for app in recent_apps %}
                         <tr>
                             <td>{{ app.customer.name }} {{ app.customer.surname }}</td>
-                            <td>{{ app.package.name if app.package else '-' }}</td>
-                            <td><span class="badge badge-status-{{ app.status }}">{{ app.status }}</span></td>
+                            <td>{{ app.team or '-' }}</td>
+                            <td><span class="badge-status badge-status-{{ app.status }}">{{ app.status | status_tr }}</span></td>
                         </tr>
                         {% endfor %}
                         {% if not recent_apps %}
-                        <tr><td colspan="3" class="text-center text-muted py-3">Henuz basvuru yok</td></tr>
+                        <tr><td colspan="3" class="text-center text-muted py-4">Henüz başvuru yok</td></tr>
                         {% endif %}
                     </tbody>
                 </table>
@@ -131,4 +155,131 @@
         </div>
     </div>
 </div>
+
+<!-- Paket Ekleme Modal -->
+<div class="modal fade" id="addPackageModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title"><i class="bi bi-box-seam-fill me-2" style="color:var(--accent-purple)"></i>Yeni Paket Ekle</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <form method="POST" action="/admin/packages/add">
+                <div class="modal-body">
+                    <div class="row g-3">
+                        <div class="col-md-6">
+                            <label class="form-label">Paket ID</label>
+                            <input type="text" name="package_id" class="form-control" placeholder="ör: SUPER_SPORT" required>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">Paket Adı</label>
+                            <input type="text" name="name" class="form-control" placeholder="ör: Süper Spor Paketi" required>
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label">Kategori</label>
+                            <select name="category" class="form-select" required>
+                                <option value="kampanyali_paketler">Kampanyalı Paketler</option>
+                                <option value="kutulu_paketler">Kutulu Paketler</option>
+                                <option value="internet_paketleri">İnternet Paketleri</option>
+                            </select>
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label">Teslimat</label>
+                            <select name="delivery" class="form-select" required>
+                                <option value="kutusuz">Kutusuz</option>
+                                <option value="kutulu">Kutulu</option>
+                            </select>
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label">Platform</label>
+                            <input type="text" name="platform" class="form-control" placeholder="ör: beIN CONNECT">
+                        </div>
+                        <div class="col-md-6">
+                            <div class="form-check mt-2">
+                                <input class="form-check-input" type="checkbox" name="team_required" id="teamRequired" value="1">
+                                <label class="form-check-label" for="teamRequired">Takım seçimi gerekli</label>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">Desteklenen Takımlar</label>
+                            <input type="text" name="teams_supported" class="form-control" placeholder="Galatasaray,Fenerbahçe,Beşiktaş,Trabzonspor">
+                            <small class="text-muted">Virgülle ayırın</small>
+                        </div>
+                        <div class="col-12"><hr></div>
+                        <div class="col-12"><strong>Fiyatlandırma</strong></div>
+                        <div class="col-md-4">
+                            <label class="form-label">KK 12 Taksit (TL/ay)</label>
+                            <input type="number" step="0.01" name="price_cc" class="form-control" placeholder="0.00">
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label">Faturalı (TL/ay)</label>
+                            <input type="number" step="0.01" name="price_invoiced" class="form-control" placeholder="0.00">
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label">Aylık (TL/ay)</label>
+                            <input type="number" step="0.01" name="price_monthly" class="form-control" placeholder="0.00">
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-glass" data-bs-dismiss="modal">İptal</button>
+                    <button type="submit" class="btn btn-primary"><i class="bi bi-plus-lg me-1"></i>Paket Ekle</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"></script>
+<script>
+Chart.defaults.color = '#94a3b8';
+Chart.defaults.borderColor = '#f1f5f9';
+
+// Başvuru Durumu
+new Chart(document.getElementById('applicationStatusChart'), {
+    type: 'bar',
+    data: {
+        labels: ['Beklemede', 'Link Gönderildi', 'Tamamlandı', 'Süresi Doldu'],
+        datasets: [{
+            label: 'Başvuru Sayısı',
+            data: [{{ pending_applications }}, {{ link_sent }}, {{ completed_applications }}, {{ expired_applications }}],
+            backgroundColor: ['#fbbf24', '#22d3ee', '#34d399', '#94a3b8'],
+            borderRadius: 8,
+            borderSkipped: false,
+            barPercentage: 0.6,
+        }]
+    },
+    options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: { legend: { display: false } },
+        scales: {
+            y: { beginAtZero: true, grid: { color: '#f1f5f9' }, ticks: { stepSize: 1 } },
+            x: { grid: { display: false } }
+        }
+    }
+});
+
+// Takım Dağılımı
+const teamData = {{ team_distribution | tojson }};
+const teamColors = { 'Galatasaray': '#FFD700', 'Fenerbahce': '#1E3A5F', 'Besiktas': '#333', 'Trabzonspor': '#8B0000' };
+const tL = Object.keys(teamData), tV = Object.values(teamData);
+new Chart(document.getElementById('teamChart'), {
+    type: 'doughnut',
+    data: {
+        labels: tL.length > 0 ? tL : ['Henüz veri yok'],
+        datasets: [{
+            data: tV.length > 0 ? tV : [1],
+            backgroundColor: tV.length > 0 ? tL.map(t => teamColors[t] || '#94a3b8') : ['#e2e8f0'],
+            borderWidth: 2, borderColor: '#fff', hoverOffset: 8
+        }]
+    },
+    options: {
+        responsive: true, maintainAspectRatio: false, cutout: '65%',
+        plugins: { legend: { position: 'bottom', labels: { padding: 16, usePointStyle: true, font: { size: 12 } } } }
+    }
+});
+</script>
 {% endblock %}

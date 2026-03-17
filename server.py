@@ -1,12 +1,14 @@
 """FastAPI main application - Twilio webhooks, WebSocket endpoint, admin panel."""
 import os
 import logging
+from typing import Optional
 from contextlib import asynccontextmanager
 
 from dotenv import load_dotenv
 from fastapi import FastAPI, WebSocket, Request, Depends
 from fastapi.responses import HTMLResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
+from pydantic import BaseModel
 from twilio.twiml.voice_response import VoiceResponse, Connect
 
 from db.database import engine, Base, get_db, SessionLocal
@@ -27,18 +29,21 @@ logger = logging.getLogger(__name__)
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    # Startup: create tables
-    Base.metadata.create_all(bind=engine)
-    logger.info("Database tables created/verified")
+    try:
+        # Startup: create tables
+        Base.metadata.create_all(bind=engine)
+        logger.info("Database tables created/verified")
 
-    # Check if packages are seeded
-    db = SessionLocal()
-    pkg_count = db.query(Package).count()
-    db.close()
-    if pkg_count == 0:
-        logger.warning("No packages found. Run 'python db/seed.py' to seed the database.")
-    else:
-        logger.info(f"{pkg_count} packages found in database")
+        # Check if packages are seeded
+        db = SessionLocal()
+        pkg_count = db.query(Package).count()
+        db.close()
+        if pkg_count == 0:
+            logger.warning("No packages found. Run 'python db/seed.py' to seed the database.")
+        else:
+            logger.info(f"{pkg_count} packages found in database")
+    except Exception as e:
+        logger.error(f"Database startup error (non-fatal): {e}")
 
     yield
     logger.info("Shutting down")
@@ -53,6 +58,87 @@ app = FastAPI(
 
 # Include admin routes
 app.include_router(admin_router)
+
+
+# ── Live Analysis API ──
+
+class LiveAnalysisRequest(BaseModel):
+    messages: list
+    state: Optional[str] = None
+    customer_name: Optional[str] = None
+    interest: Optional[str] = None
+    package_id: Optional[str] = None
+    is_final: bool = False
+
+
+@app.post("/api/live-analysis")
+async def live_analysis(req: LiveAnalysisRequest):
+    """Real-time customer analysis during a call using OpenAI."""
+    conversation_text = "\n".join(
+        f"{'Musteri' if m.get('role') == 'user' else 'Temsilci'}: {m.get('text', '')}"
+        for m in req.messages
+    )
+
+    analysis_prompt = f"""Sen bir Digiturk satis analiz uzmanisın. Asagidaki canli gorusmeyi analiz et ve JSON formatinda yanit ver.
+
+GORUSME METNI:
+{conversation_text}
+
+EK BILGILER:
+- Gorusme durumu: {req.state or 'Bilinmiyor'}
+- Musteri adi: {req.customer_name or 'Henuz bilinmiyor'}
+- Ilgi alani: {req.interest or 'Henuz belirlenmedi'}
+- Secilen paket: {req.package_id or 'Henuz secilmedi'}
+- Gorusme {'sona erdi' if req.is_final else 'devam ediyor'}
+
+Asagidaki JSON formatinda SADECE JSON olarak yanit ver, baska bir sey yazma:
+{{
+    "purchase_intent": <0-100 arasi sayi, musterinin satin alma olasiligi>,
+    "intent_reason": "<tek cumle: neden bu skor>",
+    "mood": "<positive|neutral|negative|interested|hesitant>",
+    "mood_detail": "<tek cumle: musterinin ruh hali aciklamasi>",
+    "signals": [
+        {{"type": "<positive|objection|info>", "text": "<sinyal aciklamasi>"}},
+    ],
+    "keywords": [
+        {{"word": "<anahtar kelime>", "sentiment": "<positive|negative|neutral>"}},
+    ],
+    "summary": "<2-3 cumle: gorusmenin genel durumu ve oneriler>"
+}}
+
+KURALLAR:
+- purchase_intent: Musteri paket sorduysa 40+, fiyat kabul ettiyse 70+, bilgi veriyorsa 80+, sadece selamlasma ise 15-25
+- signals: En fazla 4 sinyal ver
+- keywords: En fazla 6 kelime ver
+- Turkce yaz"""
+
+    try:
+        from openai import OpenAI
+        client = OpenAI()
+        response = client.chat.completions.create(
+            model="gpt-4o-mini",
+            messages=[
+                {"role": "system", "content": "Sen bir satis analiz AI'sin. Sadece gecerli JSON dondur, baska bir sey yazma."},
+                {"role": "user", "content": analysis_prompt},
+            ],
+            temperature=0.3,
+            max_tokens=600,
+            response_format={"type": "json_object"},
+        )
+        import json
+        result = json.loads(response.choices[0].message.content)
+        return result
+    except Exception as e:
+        logger.error(f"Live analysis error: {e}")
+        return {
+            "purchase_intent": 0,
+            "intent_reason": "Analiz yapilamadi",
+            "mood": "neutral",
+            "mood_detail": str(e),
+            "signals": [],
+            "keywords": [],
+            "summary": "Analiz sirasinda hata olustu.",
+        }
 
 
 @app.get("/", response_class=HTMLResponse)

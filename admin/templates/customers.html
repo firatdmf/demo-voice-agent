@@ -1,0 +1,155 @@
+{% extends "base.html" %}
+{% set active_page = "customers" %}
+
+{% block title %}Müşteriler - Digiturk CRM{% endblock %}
+{% block page_title %}Müşteriler{% endblock %}
+
+{% block content %}
+<!-- Özet Kartları -->
+<div class="row g-4 mb-4">
+    <div class="col-xl-3 col-md-6">
+        <div class="stat-card">
+            <div class="stat-glow" style="background: var(--accent-cyan);"></div>
+            <div class="stat-icon" style="background: #ecfeff; color: var(--accent-cyan);">
+                <i class="bi bi-people-fill"></i>
+            </div>
+            <div class="stat-label">Toplam Müşteri</div>
+            <div class="stat-value">{{ total_customers }}</div>
+        </div>
+    </div>
+    <div class="col-xl-3 col-md-6">
+        <div class="stat-card">
+            <div class="stat-glow" style="background: var(--accent-green);"></div>
+            <div class="stat-icon" style="background: #ecfdf5; color: var(--accent-green);">
+                <i class="bi bi-check-circle-fill"></i>
+            </div>
+            <div class="stat-label">Başvurusu Olan</div>
+            <div class="stat-value">{{ customers_with_apps }}</div>
+        </div>
+    </div>
+    <div class="col-xl-3 col-md-6">
+        <div class="stat-card">
+            <div class="stat-glow" style="background: var(--accent-orange);"></div>
+            <div class="stat-icon" style="background: #fffbeb; color: var(--accent-orange);">
+                <i class="bi bi-geo-alt-fill"></i>
+            </div>
+            <div class="stat-label">Farklı Şehir</div>
+            <div class="stat-value">{{ unique_cities }}</div>
+        </div>
+    </div>
+    <div class="col-xl-3 col-md-6">
+        <div class="stat-card">
+            <div class="stat-glow" style="background: var(--accent-pink);"></div>
+            <div class="stat-icon" style="background: #fdf2f8; color: var(--accent-pink);">
+                <i class="bi bi-calendar-plus-fill"></i>
+            </div>
+            <div class="stat-label">Bu Ay Yeni</div>
+            <div class="stat-value">{{ new_this_month }}</div>
+        </div>
+    </div>
+</div>
+
+<!-- Müşteri Tablosu -->
+<div class="card">
+    <div class="card-header d-flex justify-content-between align-items-center">
+        <span><i class="bi bi-people-fill me-2" style="color:var(--accent-cyan)"></i>Müşteri Listesi</span>
+        <input type="text" id="customerSearch" class="form-control form-control-sm" placeholder="Müşteri ara..." style="width:220px">
+    </div>
+    <div class="card-body p-0">
+        <div class="table-responsive">
+            <table class="table table-hover" id="customerTable">
+                <thead>
+                    <tr>
+                        <th>Müşteri</th>
+                        <th>Telefon</th>
+                        <th>Şehir</th>
+                        <th>Doğum Tarihi</th>
+                        <th>Başvuru</th>
+                        <th>Takım</th>
+                        <th>AI Analiz</th>
+                        <th>Kayıt Tarihi</th>
+                        <th></th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for c in customers %}
+                    <tr>
+                        <td>
+                            <div class="d-flex align-items-center gap-2">
+                                <div style="width:36px;height:36px;border-radius:10px;background:linear-gradient(135deg,#ecfeff,#f5f3ff);display:flex;align-items:center;justify-content:center;font-weight:700;font-size:0.8rem;color:var(--accent-blue)">
+                                    {{ c.name[0] }}{{ c.surname[0] }}
+                                </div>
+                                <div>
+                                    <div style="font-weight:600;color:var(--text-primary)">{{ c.name }} {{ c.surname }}</div>
+                                </div>
+                            </div>
+                        </td>
+                        <td><code style="color:var(--accent-blue)">{{ c.phone }}</code></td>
+                        <td>{{ c.city or '-' }}</td>
+                        <td>{{ c.birth_date.strftime('%d.%m.%Y') if c.birth_date else '-' }}</td>
+                        <td>
+                            {% if c.applications | length > 0 %}
+                            <span class="badge-status badge-status-completed">{{ c.applications | length }} başvuru</span>
+                            {% else %}
+                            <span class="text-muted">-</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            {% set teams = [] %}
+                            {% for app in c.applications %}
+                                {% if app.team and app.team not in teams %}
+                                    {% if teams.append(app.team) %}{% endif %}
+                                {% endif %}
+                            {% endfor %}
+                            {% if teams %}
+                                {% for team in teams %}
+                                <span class="badge-status" style="
+                                    {% if team == 'Galatasaray' %}background:#fffbeb;color:#b45309;border:1px solid #fde68a
+                                    {% elif team == 'Fenerbahce' %}background:#eff6ff;color:#1e40af;border:1px solid #bfdbfe
+                                    {% elif team == 'Besiktas' %}background:#f8fafc;color:#334155;border:1px solid #e2e8f0
+                                    {% elif team == 'Trabzonspor' %}background:#fef2f2;color:#991b1b;border:1px solid #fecaca
+                                    {% else %}background:#f8fafc;color:#64748b;border:1px solid #e2e8f0{% endif %}
+                                ">{{ team }}</span>
+                                {% endfor %}
+                            {% else %}
+                            <span class="text-muted">-</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            {% if c.ai_notes %}
+                            <span class="badge-status badge-status-completed"><i class="bi bi-robot me-1"></i>Analiz var</span>
+                            {% else %}
+                            <span class="badge-status badge-status-expired">Bekleniyor</span>
+                            {% endif %}
+                        </td>
+                        <td class="text-muted">{{ c.created_at.strftime('%d.%m.%Y') if c.created_at else '-' }}</td>
+                        <td>
+                            <a href="/admin/customers/{{ c.id }}" class="btn-glass btn btn-sm"><i class="bi bi-eye"></i></a>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                    {% if not customers %}
+                    <tr>
+                        <td colspan="9" class="text-center text-muted py-5">
+                            <i class="bi bi-people fs-1 d-block mb-2 opacity-25"></i>
+                            Henüz müşteri kaydı yok
+                        </td>
+                    </tr>
+                    {% endif %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+document.getElementById('customerSearch').addEventListener('input', function() {
+    const q = this.value.toLowerCase();
+    document.querySelectorAll('#customerTable tbody tr').forEach(row => {
+        row.style.display = row.textContent.toLowerCase().includes(q) ? '' : 'none';
+    });
+});
+</script>
+{% endblock %}

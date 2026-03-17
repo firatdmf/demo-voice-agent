@@ -1,76 +1,99 @@
 {% extends "base.html" %}
 {% set active_page = "applications" %}
 
-{% block title %}Basvurular - Digiturk Bayi Admin{% endblock %}
+{% block title %}Başvurular - Digiturk CRM{% endblock %}
+{% block page_title %}Başvurular{% endblock %}
 
 {% block content %}
-<h2 class="mb-4">Basvurular</h2>
-
 <div class="card">
+    <div class="card-header d-flex justify-content-between align-items-center">
+        <span><i class="bi bi-file-earmark-text-fill me-2" style="color:var(--accent-green)"></i>Tüm Başvurular</span>
+        <input type="text" id="appSearch" class="form-control form-control-sm" placeholder="Başvuru ara..." style="width:220px">
+    </div>
     <div class="card-body p-0">
-        <table class="table table-hover mb-0">
-            <thead class="table-light">
-                <tr>
-                    <th>Tarih</th>
-                    <th>Musteri</th>
-                    <th>Telefon</th>
-                    <th>Paket</th>
-                    <th>Takim</th>
-                    <th>Odeme</th>
-                    <th>Teslimat</th>
-                    <th>Durum</th>
-                    <th></th>
-                </tr>
-            </thead>
-            <tbody>
-                {% for app in applications %}
-                <tr>
-                    <td>{{ app.created_at.strftime('%d.%m.%Y %H:%M') if app.created_at else '-' }}</td>
-                    <td>
-                        {% if app.customer %}
-                        {{ app.customer.name }} {{ app.customer.surname }}
-                        {% else %}
-                        -
-                        {% endif %}
-                    </td>
-                    <td>{{ app.customer.phone if app.customer else '-' }}</td>
-                    <td>{{ app.package.name if app.package else '-' }}</td>
-                    <td>{{ app.team or '-' }}</td>
-                    <td>
-                        {% if app.payment_type == 'credit_card_installment_12' %}
-                        <span class="badge bg-light text-dark">KK 12 Taksit</span>
-                        {% elif app.payment_type == 'invoiced' %}
-                        <span class="badge bg-light text-dark">Faturali</span>
-                        {% elif app.payment_type == 'monthly' %}
-                        <span class="badge bg-light text-dark">Aylik</span>
-                        {% else %}
-                        {{ app.payment_type }}
-                        {% endif %}
-                    </td>
-                    <td>
-                        {% if app.delivery == 'kutusuz' %}
-                        <span class="badge bg-light text-dark">Kutusuz</span>
-                        {% else %}
-                        <span class="badge bg-dark">Kutulu</span>
-                        {% endif %}
-                    </td>
-                    <td>
-                        <span class="badge badge-status-{{ app.status }}">{{ app.status }}</span>
-                    </td>
-                    <td>
-                        <a href="/admin/applications/{{ app.id }}" class="btn btn-sm btn-outline-primary">
-                            <i class="bi bi-eye"></i>
-                        </a>
-                    </td>
-                </tr>
-                {% endfor %}
-                {% if not applications %}
-                <tr>
-                    <td colspan="9" class="text-center text-muted py-4">Henuz basvuru yok</td>
-                </tr>
-                {% endif %}
-            </tbody>
-        </table>
+        <div class="table-responsive">
+            <table class="table table-hover" id="appTable">
+                <thead>
+                    <tr>
+                        <th>Tarih</th>
+                        <th>Müşteri</th>
+                        <th>Telefon</th>
+                        <th>Paket</th>
+                        <th>Takım</th>
+                        <th>Ödeme</th>
+                        <th>Teslimat</th>
+                        <th>Durum</th>
+                        <th></th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for app in applications %}
+                    <tr>
+                        <td class="text-muted">{{ app.created_at.strftime('%d.%m.%Y %H:%M') if app.created_at else '-' }}</td>
+                        <td>
+                            {% if app.customer %}
+                            <div class="d-flex align-items-center gap-2">
+                                <div style="width:32px;height:32px;border-radius:8px;background:linear-gradient(135deg,#ecfdf5,#eff6ff);display:flex;align-items:center;justify-content:center;font-weight:700;font-size:0.7rem;color:var(--accent-green)">
+                                    {{ app.customer.name[0] }}{{ app.customer.surname[0] }}
+                                </div>
+                                <a href="/admin/customers/{{ app.customer.id }}" style="color:var(--text-primary);text-decoration:none;font-weight:500">{{ app.customer.name }} {{ app.customer.surname }}</a>
+                            </div>
+                            {% else %}-{% endif %}
+                        </td>
+                        <td><code style="color:var(--accent-blue)">{{ app.customer.phone if app.customer else '-' }}</code></td>
+                        <td><small>{{ app.package.name if app.package else '-' }}</small></td>
+                        <td>
+                            {% if app.team %}
+                            <span class="badge-status" style="
+                                {% if app.team == 'Galatasaray' %}background:#fffbeb;color:#b45309;border:1px solid #fde68a
+                                {% elif app.team == 'Fenerbahce' %}background:#eff6ff;color:#1e40af;border:1px solid #bfdbfe
+                                {% elif app.team == 'Besiktas' %}background:#f8fafc;color:#334155;border:1px solid #e2e8f0
+                                {% elif app.team == 'Trabzonspor' %}background:#fef2f2;color:#991b1b;border:1px solid #fecaca
+                                {% else %}background:#f8fafc;color:#64748b;border:1px solid #e2e8f0{% endif %}
+                            ">{{ app.team }}</span>
+                            {% else %}-{% endif %}
+                        </td>
+                        <td>
+                            <span class="badge-status" style="background:#f8fafc;color:var(--text-secondary);border:1px solid #e2e8f0">
+                                {% if app.payment_type == 'credit_card_installment_12' %}KK 12 Taksit
+                                {% elif app.payment_type == 'invoiced' %}Faturalı
+                                {% elif app.payment_type == 'monthly' %}Aylık
+                                {% else %}{{ app.payment_type }}{% endif %}
+                            </span>
+                        </td>
+                        <td>
+                            {% if app.delivery == 'kutusuz' %}
+                            <span class="badge-status" style="background:#ecfeff;color:#0891b2;border:1px solid #a5f3fc">Kutusuz</span>
+                            {% else %}
+                            <span class="badge-status" style="background:#f5f3ff;color:#7c3aed;border:1px solid #ddd6fe">Kutulu</span>
+                            {% endif %}
+                        </td>
+                        <td><span class="badge-status badge-status-{{ app.status }}">{{ app.status | status_tr }}</span></td>
+                        <td><a href="/admin/applications/{{ app.id }}" class="btn-glass btn btn-sm"><i class="bi bi-eye"></i></a></td>
+                    </tr>
+                    {% endfor %}
+                    {% if not applications %}
+                    <tr>
+                        <td colspan="9" class="text-center text-muted py-5">
+                            <i class="bi bi-file-earmark-text fs-1 d-block mb-2 opacity-25"></i>
+                            Henüz başvuru yok
+                        </td>
+                    </tr>
+                    {% endif %}
+                </tbody>
+            </table>
+        </div>
     </div>
 </div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+document.getElementById('appSearch').addEventListener('input', function() {
+    const q = this.value.toLowerCase();
+    document.querySelectorAll('#appTable tbody tr').forEach(row => {
+        row.style.display = row.textContent.toLowerCase().includes(q) ? '' : 'none';
+    });
+});
+</script>
 {% endblock %}

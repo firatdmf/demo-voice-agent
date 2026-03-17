@@ -1,47 +1,60 @@
 {% extends "base.html" %}
 {% set active_page = "calls" %}
 
-{% block title %}Cagri Detay - Digiturk Bayi Admin{% endblock %}
+{% block title %}Çağrı Detay - Digiturk CRM{% endblock %}
+{% block page_title %}Çağrı Detay{% endblock %}
 
 {% block content %}
-<div class="d-flex align-items-center mb-4">
-    <a href="/admin/calls" class="btn btn-outline-secondary me-3"><i class="bi bi-arrow-left"></i></a>
-    <h2 class="mb-0">Cagri Detay</h2>
-    <span class="badge badge-status-{{ call.status }} ms-3 fs-6">{{ call.status }}</span>
+<div class="d-flex align-items-center gap-3 mb-4">
+    <a href="/admin/calls" class="btn-glass btn btn-sm"><i class="bi bi-arrow-left"></i></a>
+    <span class="badge-status badge-status-{{ call.status }}" style="font-size:0.85rem;padding:6px 14px">{{ call.status }}</span>
 </div>
 
 <div class="row g-4">
-    <div class="col-md-6">
-        <div class="card">
-            <div class="card-header"><h5 class="mb-0">Cagri Bilgileri</h5></div>
+    <div class="col-xl-6">
+        <div class="card h-100">
+            <div class="card-header">
+                <i class="bi bi-telephone-fill me-2" style="color:var(--accent-blue)"></i>Çağrı Bilgileri
+            </div>
             <div class="card-body">
                 <table class="table table-borderless mb-0">
-                    <tr><td class="text-muted" style="width:160px">Twilio Call SID</td><td><code>{{ call.twilio_call_sid or '-' }}</code></td></tr>
-                    <tr><td class="text-muted">Arayan</td><td>{{ call.caller_phone or '-' }}</td></tr>
-                    <tr><td class="text-muted">Baslangic</td><td>{{ call.started_at.strftime('%d.%m.%Y %H:%M:%S') if call.started_at else '-' }}</td></tr>
-                    <tr><td class="text-muted">Bitis</td><td>{{ call.ended_at.strftime('%d.%m.%Y %H:%M:%S') if call.ended_at else '-' }}</td></tr>
-                    <tr><td class="text-muted">Durum</td><td><span class="badge badge-status-{{ call.status }}">{{ call.status }}</span></td></tr>
+                    <tr><td class="text-muted" style="width:160px">Twilio Call SID</td><td><code style="color:var(--accent-blue);font-size:0.78rem">{{ call.twilio_call_sid or '-' }}</code></td></tr>
+                    <tr><td class="text-muted">Arayan</td><td>
+                        <div class="d-flex align-items-center gap-2">
+                            <div style="width:28px;height:28px;border-radius:7px;background:#eff6ff;display:flex;align-items:center;justify-content:center">
+                                <i class="bi bi-telephone" style="color:var(--accent-blue);font-size:0.7rem"></i>
+                            </div>
+                            <code style="color:var(--accent-blue)">{{ call.caller_phone or '-' }}</code>
+                        </div>
+                    </td></tr>
+                    <tr><td class="text-muted">Başlangıç</td><td>{{ call.started_at.strftime('%d.%m.%Y %H:%M:%S') if call.started_at else '-' }}</td></tr>
+                    <tr><td class="text-muted">Bitiş</td><td>{{ call.ended_at.strftime('%d.%m.%Y %H:%M:%S') if call.ended_at else '-' }}</td></tr>
                     {% if call.customer %}
-                    <tr><td class="text-muted">Musteri</td><td>{{ call.customer.name }} {{ call.customer.surname }}</td></tr>
+                    <tr><td class="text-muted">Müşteri</td><td style="font-weight:600"><a href="/admin/customers/{{ call.customer.id }}" style="color:var(--text-primary);text-decoration:none">{{ call.customer.name }} {{ call.customer.surname }}</a></td></tr>
                     {% endif %}
                     {% if call.application %}
-                    <tr><td class="text-muted">Basvuru</td><td><a href="/admin/applications/{{ call.application.id }}">Basvuru Detay</a></td></tr>
+                    <tr><td class="text-muted">Başvuru</td><td><a href="/admin/applications/{{ call.application.id }}" style="color:var(--accent-blue)"><i class="bi bi-link-45deg me-1"></i>Başvuru Detay</a></td></tr>
                     {% endif %}
                 </table>
             </div>
         </div>
     </div>
-    <div class="col-md-6">
-        <div class="card">
-            <div class="card-header"><h5 class="mb-0">Gorusme Ozeti</h5></div>
+    <div class="col-xl-6">
+        <div class="card h-100">
+            <div class="card-header">
+                <i class="bi bi-chat-text-fill me-2" style="color:var(--accent-green)"></i>Görüşme Özeti
+            </div>
             <div class="card-body">
-                <p>{{ call.conversation_summary or 'Ozet yok.' }}</p>
-
+                <p style="line-height:1.7">{{ call.conversation_summary or 'Özet yok.' }}</p>
                 {% if call.flags %}
-                <h6 class="mt-3">Flags</h6>
-                {% for flag in call.flags %}
-                <span class="badge bg-warning text-dark me-1">{{ flag }}</span>
-                {% endfor %}
+                <div style="border-top:1px solid var(--border-color);padding-top:12px;margin-top:12px">
+                    <small class="text-muted text-uppercase" style="font-weight:600;letter-spacing:0.5px">İşaretler</small>
+                    <div class="mt-2 d-flex gap-2 flex-wrap">
+                        {% for flag in call.flags %}
+                        <span class="badge-status badge-status-pending">{{ flag }}</span>
+                        {% endfor %}
+                    </div>
+                </div>
                 {% endif %}
             </div>
         </div>
@@ -50,14 +63,16 @@
 
 {% if call.state_history %}
 <div class="card mt-4">
-    <div class="card-header"><h5 class="mb-0">State Gecisleri</h5></div>
+    <div class="card-header">
+        <i class="bi bi-diagram-3-fill me-2" style="color:var(--accent-purple)"></i>Durum Geçişleri
+    </div>
     <div class="card-body">
         <div class="d-flex flex-wrap gap-2 align-items-center">
             {% for transition in call.state_history %}
-            <span class="badge bg-light text-dark border">{{ transition.get('from', '?') }}</span>
-            <i class="bi bi-arrow-right text-muted"></i>
+            <span class="badge-status" style="background:#f8fafc;color:var(--text-secondary);border:1px solid #e2e8f0">{{ transition.get('from', '?') }}</span>
+            <i class="bi bi-arrow-right text-muted" style="font-size:0.7rem"></i>
             {% if loop.last %}
-            <span class="badge bg-primary">{{ transition.get('to', '?') }}</span>
+            <span class="badge-status badge-status-completed">{{ transition.get('to', '?') }}</span>
             {% endif %}
             {% endfor %}
         </div>

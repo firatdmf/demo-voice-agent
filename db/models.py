@@ -60,6 +60,8 @@ class Customer(Base):
     building_no = Column(String(20))
     apartment_no = Column(String(20))
     address_freeform = Column(Text)
+    ai_notes = Column(Text)  # AI tarafından oluşturulan müşteri analizi
+    ai_analysis_at = Column(DateTime(timezone=True))  # Son analiz tarihi
     created_at = Column(DateTime(timezone=True), default=utcnow)
 
     applications = relationship("Application", back_populates="customer")
