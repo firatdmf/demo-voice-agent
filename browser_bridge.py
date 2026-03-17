@@ -119,9 +119,9 @@ class BrowserOpenAIBridge:
                         "format": {"type": "audio/pcm", "rate": 24000},
                         "turn_detection": {
                             "type": "server_vad",
-                            "threshold": 0.75,
-                            "prefix_padding_ms": 500,
-                            "silence_duration_ms": 500,
+                            "threshold": 0.99,
+                            "prefix_padding_ms": 300,
+                            "silence_duration_ms": 400,
                         },
                         "transcription": {"model": "whisper-1"},
                     },
