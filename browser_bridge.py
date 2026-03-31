@@ -1,18 +1,19 @@
-"""Browser <-> OpenAI Realtime API bridge (native audio or ElevenLabs TTS)."""
+"""Browser <-> Gemini Live API bridge (native audio-to-audio)."""
 import os
 import json
 import asyncio
 import logging
+import time
 from datetime import datetime, timezone
 
 import websockets
 from fastapi import WebSocket, WebSocketDisconnect
 
 from state_machine import CallContext, CallState
-from prompts import build_system_prompt, OPENAI_TOOLS
+from prompts import build_system_prompt
 from validators import validate_tckn, normalize_phone, parse_date
 from db.database import SessionLocal
-from db.models import CallSession
+from db.models import CallSession, Customer
 from services.catalog_service import CatalogService
 from services.customer_service import CustomerService
 from services.application_service import ApplicationService
@@ -20,72 +21,62 @@ from services.sms_service import SMSService
 
 logger = logging.getLogger(__name__)
 
-# ── Mode toggle: set to True to use ElevenLabs TTS, False for OpenAI native audio ──
-USE_ELEVENLABS = False
-
-# OpenAI Realtime API
-OPENAI_API_KEY = os.getenv("OPENAI_API_KEY", "")
-_OPENAI_MODEL = "gpt-realtime-1.5" if USE_ELEVENLABS else "gpt-realtime-1.5"
-OPENAI_REALTIME_URL = f"wss://api.openai.com/v1/realtime?model={_OPENAI_MODEL}"
-
-# ElevenLabs TTS - flash model for lowest latency (disabled when USE_ELEVENLABS=False)
-ELEVENLABS_API_KEY = os.getenv("ELEVENLABS_API_KEY", "")
-ELEVENLABS_VOICE_ID = os.getenv("ELEVENLABS_VOICE_ID", "cgSgspJ2msm6clMCkdW9")
-ELEVENLABS_MODEL = "eleven_flash_v2_5"
+# Gemini Live API
+GEMINI_API_KEY = os.getenv("GEMINI_API_KEY", "")
+GEMINI_MODEL = os.getenv("GEMINI_MODEL", "gemini-2.5-flash-native-audio-latest")
+GEMINI_LIVE_URL = (
+    "wss://generativelanguage.googleapis.com/ws/"
+    "google.ai.generativelanguage.v1beta.GenerativeService.BidiGenerateContent"
+    f"?key={GEMINI_API_KEY}"
+)
 
 
-def _el_ws_url():
-    return (
-        f"wss://api.elevenlabs.io/v1/text-to-speech/{ELEVENLABS_VOICE_ID}/stream-input"
-        f"?model_id={ELEVENLABS_MODEL}"
-        f"&output_format=pcm_24000"
-        f"&optimize_streaming_latency=4"
-    )
-
-
-class BrowserOpenAIBridge:
-    """Bridges audio between browser WebSocket, OpenAI Realtime API (text), and ElevenLabs TTS."""
+class BrowserGeminiBridge:
+    """Bridges audio between browser and Gemini Live API (native audio-to-audio)."""
 
     def __init__(self, browser_ws: WebSocket):
         self.browser_ws = browser_ws
-        self.openai_ws = None
-        self.elevenlabs_ws = None
+        self.gemini_ws = None
         self.ctx = CallContext()
         self.db = SessionLocal()
         self.call_session = None
-        self._tts_receiver_task = None
-        self._is_speaking = False
-        self._current_text_buffer = ""
         self._browser_closed = False
+        self._setup_complete = False
+        self._ai_transcript_buffer = ""
+        self._user_transcript_buffer = ""
+        self._user_speech_end_time = 0  # for latency measurement
+        self._first_audio_response_logged = False
+        self._conversation_transcript = []
+        # Silence detection
+        self._silence_check_task = None
+        self._last_user_audio_time = 0
+        self._ai_turn_complete_time = 0
+        self._silence_warnings = 0
+        self._ai_is_speaking = False
 
     async def handle(self):
         try:
-            if not OPENAI_API_KEY or OPENAI_API_KEY == "sk-...":
-                await self._send_browser({"type": "error", "message": "OPENAI_API_KEY ayarlanmamis."})
+            if not GEMINI_API_KEY:
+                await self._send_browser({"type": "error", "message": "GEMINI_API_KEY ayarlanmamış."})
                 return
 
-            if USE_ELEVENLABS and not ELEVENLABS_API_KEY:
-                await self._send_browser({"type": "error", "message": "ELEVENLABS_API_KEY ayarlanmamis."})
-                return
-
-            headers = {"Authorization": f"Bearer {OPENAI_API_KEY}"}
             async with websockets.connect(
-                OPENAI_REALTIME_URL,
-                additional_headers=headers,
+                GEMINI_LIVE_URL,
                 ping_interval=20,
                 ping_timeout=20,
-            ) as openai_ws:
-                self.openai_ws = openai_ws
+            ) as gemini_ws:
+                self.gemini_ws = gemini_ws
                 await self._configure_session()
                 await self._create_call_session()
 
                 await asyncio.gather(
                     self._listen_browser(),
-                    self._listen_openai(),
+                    self._listen_gemini(),
+                    self._silence_monitor(),
                 )
         except websockets.exceptions.InvalidStatusCode as e:
-            logger.error(f"OpenAI connection failed: {e}")
-            await self._send_browser({"type": "error", "message": f"OpenAI baglanti hatasi: {e}"})
+            logger.error(f"Gemini connection failed: {e}")
+            await self._send_browser({"type": "error", "message": f"Gemini bağlantı hatası: {e}"})
         except Exception as e:
             logger.error(f"Bridge error: {e}", exc_info=True)
             await self._send_browser({"type": "error", "message": str(e)})
@@ -100,241 +91,298 @@ class BrowserOpenAIBridge:
         except Exception:
             self._browser_closed = True
 
+    # ── Gemini Session ────────────────────────────────────────────────
+
     async def _configure_session(self):
         catalog_summary = self._get_catalog_summary()
         system_prompt = build_system_prompt(self.ctx, catalog_summary)
 
-        modalities = ["text"] if USE_ELEVENLABS else ["audio"]
-        model = "gpt-realtime-mini" if USE_ELEVENLABS else "gpt-realtime-1.5"
-
-        session_config = {
-            "type": "session.update",
-            "session": {
-                "type": "realtime",
-                "model": model,
-                "output_modalities": modalities,
-                "instructions": system_prompt,
-                "audio": {
-                    "input": {
-                        "format": {"type": "audio/pcm", "rate": 24000},
-                        "turn_detection": {
-                            "type": "server_vad",
-                            "threshold": 0.99,
-                            "prefix_padding_ms": 300,
-                            "silence_duration_ms": 400,
+        setup_msg = {
+            "setup": {
+                "model": f"models/{GEMINI_MODEL}",
+                "generationConfig": {
+                    "responseModalities": ["AUDIO"],
+                    "speechConfig": {
+                        "languageCode": "tr-TR",
+                        "voiceConfig": {
+                            "prebuiltVoiceConfig": {
+                                "voiceName": "Kore",
+                            },
                         },
-                        "transcription": {"model": "whisper-1"},
                     },
-                    "output": {
-                        "format": {"type": "audio/pcm", "rate": 24000},
-                        "voice": "marin",
+                    "thinkingConfig": {
+                        "thinkingBudget": 0,
                     },
                 },
-                "tools": OPENAI_TOOLS,
-                "tool_choice": "auto",
-            },
+                "systemInstruction": {
+                    "parts": [{"text": system_prompt}]
+                },
+                "tools": [{
+                    "function_declarations": [
+                        {
+                            "name": "list_packages",
+                            "description": "Mevcut Digiturk paketlerini listeler",
+                            "parameters": {
+                                "type": "object",
+                                "properties": {
+                                    "category": {
+                                        "type": "string",
+                                        "enum": ["kampanyali_paketler", "kutulu_paketler", "internet_paketleri"],
+                                        "description": "Paket kategorisi filtresi"
+                                    }
+                                }
+                            }
+                        },
+                        {
+                            "name": "get_package",
+                            "description": "Belirli bir paketin detaylarini getirir",
+                            "parameters": {
+                                "type": "object",
+                                "properties": {
+                                    "package_id": {"type": "string", "description": "Paket ID"}
+                                },
+                                "required": ["package_id"]
+                            }
+                        },
+                        {
+                            "name": "select_package",
+                            "description": "Musteri paketi VE odeme turunu onayladiktan sonra cagir. Paketi ve odemeyi birlikte kaydet. Odeme turu sorulmadan CAGIRMA.",
+                            "parameters": {
+                                "type": "object",
+                                "properties": {
+                                    "package_id": {"type": "string", "description": "Secilen paket ID"},
+                                    "payment_type": {"type": "string", "description": "taksit veya faturali"},
+                                    "team": {"type": "string", "description": "Secilen takim (varsa)"}
+                                },
+                                "required": ["package_id", "payment_type"]
+                            }
+                        },
+                        {
+                            "name": "validate_tckn",
+                            "description": "TC Kimlik Numarasini dogrular. SADECE musterinin SOZEL OLARAK soyledigi 11 hanelik numarayi gonder. Kendin numara UYDURMA. Once musteriden TC iste, musteri soylesin, sen kaydet, 11 hane olunca cagir.",
+                            "parameters": {
+                                "type": "object",
+                                "properties": {
+                                    "tckn": {"type": "string", "description": "11 haneli TC Kimlik Numarasi, eksik hane olmamali"}
+                                },
+                                "required": ["tckn"]
+                            }
+                        },
+                        {
+                            "name": "save_customer",
+                            "description": "Musteri bilgilerini kaydeder",
+                            "parameters": {
+                                "type": "object",
+                                "properties": {
+                                    "name": {"type": "string", "description": "Ad"},
+                                    "surname": {"type": "string", "description": "Soyad"},
+                                    "tckn": {"type": "string", "description": "TC Kimlik"},
+                                    "birth_date": {"type": "string", "description": "Dogum tarihi GG.AA.YYYY"},
+                                    "phone": {"type": "string", "description": "Telefon numarasi"},
+                                    "city": {"type": "string", "description": "Il"},
+                                    "district": {"type": "string", "description": "Ilce"},
+                                    "neighborhood": {"type": "string", "description": "Mahalle"},
+                                    "street": {"type": "string", "description": "Sokak"},
+                                    "building_no": {"type": "string", "description": "Bina no"},
+                                    "apartment_no": {"type": "string", "description": "Daire no"}
+                                },
+                                "required": ["name", "surname", "tckn", "birth_date", "phone"]
+                            }
+                        },
+                        {
+                            "name": "create_application",
+                            "description": "Basvuru olusturur ve SMS ile link gonderir. SADECE save_customer basarili olduktan sonra cagir.",
+                            "parameters": {
+                                "type": "object",
+                                "properties": {}
+                            }
+                        }
+                    ]
+                }],
+            }
         }
-        await self.openai_ws.send(json.dumps(session_config))
-        logger.info(f"OpenAI session configured ({model}, modalities={modalities})")
+        await self.gemini_ws.send(json.dumps(setup_msg))
+        logger.info(f"Gemini setup sent (model={GEMINI_MODEL})")
 
-        await self.openai_ws.send(json.dumps({"type": "response.create"}))
+        # Wait for setupComplete
+        async for message in self.gemini_ws:
+            data = json.loads(message)
+            if "setupComplete" in data:
+                self._setup_complete = True
+                logger.info("Gemini ready")
+                break
+
+        # Trigger initial greeting
+        await self.gemini_ws.send(json.dumps({
+            "clientContent": {
+                "turns": [{"role": "user", "parts": [{"text": "Merhaba"}]}],
+                "turnComplete": True,
+            }
+        }))
 
     async def _listen_browser(self):
+        """Forward browser audio to Gemini."""
         try:
             while True:
                 message = await self.browser_ws.receive_text()
                 data = json.loads(message)
 
-                if data.get("type") == "audio":
+                if data.get("type") == "audio" and self._setup_complete:
                     audio_b64 = data.get("audio", "")
-                    if audio_b64:
-                        await self.openai_ws.send(json.dumps({
-                            "type": "input_audio_buffer.append",
-                            "audio": audio_b64,
+                    if audio_b64 and self.gemini_ws and self.gemini_ws.state.name == "OPEN":
+                        self._last_user_audio_time = time.monotonic()
+                        await self.gemini_ws.send(json.dumps({
+                            "realtimeInput": {
+                                "audio": {
+                                    "data": audio_b64,
+                                    "mimeType": "audio/pcm;rate=16000",
+                                }
+                            }
                         }))
 
         except WebSocketDisconnect:
             self._browser_closed = True
             logger.info("Browser WebSocket disconnected")
+        except websockets.exceptions.ConnectionClosed:
+            self._browser_closed = True
+            logger.info("Gemini connection lost during audio send")
         except Exception as e:
             self._browser_closed = True
             logger.error(f"Browser listener error: {e}", exc_info=True)
 
-    async def _listen_openai(self):
+    async def _listen_gemini(self):
+        """Handle Gemini Live API responses — forward audio to browser."""
         try:
-            async for message in self.openai_ws:
-                event = json.loads(message)
-                event_type = event.get("type", "")
+            async for message in self.gemini_ws:
+                data = json.loads(message)
 
-                if event_type == "session.created":
-                    mode = "ElevenLabs TTS" if USE_ELEVENLABS else "native audio"
-                    logger.info(f"OpenAI session created ({mode})")
+                if "serverContent" in data:
+                    sc = data["serverContent"]
 
-                # ── OpenAI native audio output (when USE_ELEVENLABS=False) ──
-                elif event_type in ("response.audio.delta", "response.output_audio.delta") and not USE_ELEVENLABS:
-                    audio_b64 = event.get("delta", "")
-                    if audio_b64:
-                        await self._send_browser({"type": "audio", "audio": audio_b64})
+                    # Audio output — forward directly to browser
+                    if "modelTurn" in sc:
+                        self._ai_is_speaking = True
+                        parts = sc["modelTurn"].get("parts", [])
+                        for part in parts:
+                            if "inlineData" in part:
+                                audio_b64 = part["inlineData"].get("data", "")
+                                if audio_b64:
+                                    if self._user_speech_end_time and not self._first_audio_response_logged:
+                                        latency_ms = int((time.monotonic() - self._user_speech_end_time) * 1000)
+                                        logger.info(f"⚡ AI response latency: {latency_ms}ms (user speech done → first AI audio)")
+                                        self._first_audio_response_logged = True
+                                    await self._send_browser({"type": "audio", "audio": audio_b64})
 
-                # Text delta - stream to ElevenLabs (only when USE_ELEVENLABS=True)
-                elif event_type == "response.output_text.delta":
-                    delta = event.get("delta", "")
-                    if delta:
-                        self._current_text_buffer += delta
-                        if USE_ELEVENLABS:
-                            if not self._is_speaking:
-                                await self._open_tts_stream()
-                            if self.elevenlabs_ws:
-                                try:
-                                    await self.elevenlabs_ws.send(json.dumps({"text": delta}))
-                                except Exception:
-                                    pass
+                    # Output transcription — accumulate
+                    if "outputTranscription" in sc:
+                        text = sc["outputTranscription"].get("text", "")
+                        if text:
+                            self._ai_transcript_buffer += text
 
-                # Text complete - flush TTS (ElevenLabs mode)
-                elif event_type == "response.output_text.done":
-                    text = event.get("text", "") or self._current_text_buffer
-                    self._current_text_buffer = ""
-                    if text:
-                        logger.info(f"AI said: {text}")
-                        await self._send_browser({"type": "transcript_ai", "text": text})
-                    if USE_ELEVENLABS:
-                        await self._flush_tts()
+                    # Input transcription — user speech ended, start latency timer
+                    if "inputTranscription" in sc:
+                        text = sc["inputTranscription"].get("text", "")
+                        if text:
+                            self._user_transcript_buffer += text
+                            # Each transcription update = user still/just finished speaking
+                            self._user_speech_end_time = time.monotonic()
+                            self._first_audio_response_logged = False
+                            logger.info(f"🎤 User speech detected: '{text.strip()}'")
 
-                # Audio transcript (native audio mode) - AI'nin söylediğinin text hali
-                elif event_type == "response.audio_transcript.done" and not USE_ELEVENLABS:
-                    text = event.get("transcript", "")
-                    if text:
-                        logger.info(f"AI said: {text}")
-                        await self._send_browser({"type": "transcript_ai", "text": text})
+                    # Turn complete — flush transcripts, start silence timer
+                    if sc.get("turnComplete"):
+                        self._user_speech_end_time = time.monotonic()
+                        self._first_audio_response_logged = False
+                        # Only start silence timer if AI actually spoke audio
+                        if self._ai_is_speaking:
+                            self._ai_turn_complete_time = time.monotonic()
+                            self._silence_warnings = 0
+                        self._ai_is_speaking = False
+                        if self._ai_transcript_buffer:
+                            # De-duplicate: check if text is repeated
+                            text = self._ai_transcript_buffer.strip()
+                            half = len(text) // 2
+                            if half > 10 and text[:half] == text[half:]:
+                                text = text[:half]
+                            logger.info(f"AI said: {text}")
+                            await self._send_browser({"type": "transcript_ai", "text": text})
+                            self._conversation_transcript.append(f"AI: {text}")
+                            self._ai_transcript_buffer = ""
+                        if self._user_transcript_buffer:
+                            logger.info(f"User said: {self._user_transcript_buffer}")
+                            await self._send_browser({"type": "transcript_user", "text": self._user_transcript_buffer})
+                            self._conversation_transcript.append(f"Müşteri: {self._user_transcript_buffer}")
+                            self._user_transcript_buffer = ""
 
-                # Interrupt: user started speaking → kill TTS + clear browser
-                elif event_type == "input_audio_buffer.speech_started":
-                    logger.info("Speech detected, clearing audio")
-                    if USE_ELEVENLABS:
-                        await self._kill_tts()
+                    # Interrupted by user — user started speaking
+                    if sc.get("interrupted"):
+                        logger.info("Gemini interrupted — user speaking")
+                        self._user_speech_end_time = time.monotonic()
+                        self._first_audio_response_logged = False
+                        self._ai_is_speaking = False
+                        self._silence_warnings = 0
+                        self._ai_turn_complete_time = 0
+                        if self._ai_transcript_buffer:
+                            await self._send_browser({"type": "transcript_ai", "text": self._ai_transcript_buffer + "..."})
+                            self._ai_transcript_buffer = ""
+                        self._user_transcript_buffer = ""
+                        await self._send_browser({"type": "interrupted"})
+
+                # Tool calls
+                elif "toolCall" in data:
+                    await self._handle_tool_call(data["toolCall"])
+
+                # Tool call cancellation
+                elif "toolCallCancellation" in data:
+                    logger.info("Gemini tool call cancelled")
+                    self._ai_transcript_buffer = ""
                     await self._send_browser({"type": "clear_audio"})
-                    self._current_text_buffer = ""
 
-                elif event_type == "conversation.item.input_audio_transcription.completed":
-                    transcript = event.get("transcript", "")
-                    if transcript:
-                        logger.info(f"User said: {transcript}")
-                        await self._send_browser({"type": "transcript_user", "text": transcript})
-
-                elif event_type == "response.function_call_arguments.done":
-                    await self._handle_function_call(event)
-
-                elif event_type == "error":
-                    error_msg = event.get("error", {}).get("message", "Bilinmeyen hata")
-                    logger.error(f"OpenAI error: {event.get('error', {})}")
-                    await self._send_browser({"type": "error", "message": error_msg})
-
-        except websockets.exceptions.ConnectionClosed:
-            logger.info("OpenAI WebSocket closed")
+        except websockets.exceptions.ConnectionClosed as e:
+            logger.info(f"Gemini WebSocket closed: {e}")
         except Exception as e:
-            logger.error(f"OpenAI listener error: {e}", exc_info=True)
+            logger.error(f"Gemini listener error: {e}", exc_info=True)
 
-    # ── ElevenLabs TTS ──────────────────────────────────────────────
+    # ── Function calling ──────────────────────────────────────────────
 
-    async def _open_tts_stream(self):
-        await self._kill_tts()
-        self._is_speaking = True
+    async def _handle_tool_call(self, tool_call: dict):
+        function_calls = tool_call.get("functionCalls", [])
+        if not function_calls:
+            return
 
-        try:
-            url = _el_ws_url()
-            logger.info(f"ElevenLabs opening stream (flash)")
-            el_ws = await websockets.connect(url)
-            self.elevenlabs_ws = el_ws
+        # Process only the FIRST function call — prevent chain-calling
+        fc = function_calls[0]
+        fn_name = fc.get("name", "")
+        fc_id = fc.get("id", "")
+        args = fc.get("args", {})
 
-            await el_ws.send(json.dumps({
-                "text": " ",
-                "voice_settings": {
-                    "stability": 0.5,
-                    "similarity_boost": 0.85,
-                },
-                "xi_api_key": ELEVENLABS_API_KEY,
-            }))
-
-            self._tts_receiver_task = asyncio.create_task(self._tts_receiver(el_ws))
-            logger.info("ElevenLabs stream opened")
-
-        except Exception as e:
-            logger.error(f"ElevenLabs open error: {e}", exc_info=True)
-            self._is_speaking = False
-            self.elevenlabs_ws = None
-
-    async def _tts_receiver(self, el_ws):
-        chunks = 0
-        try:
-            async for msg in el_ws:
-                data = json.loads(msg)
-                audio_b64 = data.get("audio")
-                if audio_b64:
-                    chunks += 1
-                    await self._send_browser({"type": "audio", "audio": audio_b64})
-                if data.get("isFinal"):
-                    break
-        except asyncio.CancelledError:
-            pass
-        except websockets.exceptions.ConnectionClosed:
-            pass
-        except Exception as e:
-            logger.error(f"ElevenLabs receiver error: {e}", exc_info=True)
-        finally:
-            logger.info(f"ElevenLabs done: {chunks} chunks")
-            self._is_speaking = False
-            try:
-                await el_ws.close()
-            except Exception:
-                pass
-            self.elevenlabs_ws = None
-
-    async def _flush_tts(self):
-        if self.elevenlabs_ws:
-            try:
-                await self.elevenlabs_ws.send(json.dumps({"text": ""}))
-            except Exception:
-                pass
-
-    async def _kill_tts(self):
-        if self.elevenlabs_ws:
-            try:
-                await self.elevenlabs_ws.close()
-            except Exception:
-                pass
-            self.elevenlabs_ws = None
-        if self._tts_receiver_task and not self._tts_receiver_task.done():
-            self._tts_receiver_task.cancel()
-            self._tts_receiver_task = None
-        self._is_speaking = False
-
-    # ── Function calling ─────────────────────────────────────────────
-
-    async def _handle_function_call(self, event):
-        call_id = event.get("call_id", "")
-        fn_name = event.get("name", "")
-        args_str = event.get("arguments", "{}")
-
-        try:
-            args = json.loads(args_str)
-        except json.JSONDecodeError:
-            args = {}
+        if len(function_calls) > 1:
+            logger.warning(f"Gemini sent {len(function_calls)} function calls at once, processing only first: {fn_name}")
 
         logger.info(f"Function call: {fn_name}({args})")
         await self._send_browser({"type": "function_call", "name": fn_name, "args": args})
 
         result = await self._execute_function(fn_name, args)
 
-        response = {
-            "type": "conversation.item.create",
-            "item": {
-                "type": "function_call_output",
-                "call_id": call_id,
-                "output": json.dumps(result, ensure_ascii=False),
-            },
-        }
-        await self.openai_ws.send(json.dumps(response))
-        await self.openai_ws.send(json.dumps({"type": "response.create"}))
+        function_responses = [{
+            "id": fc_id,
+            "name": fn_name,
+            "response": result,
+        }]
+
+        # If there were extra function calls, return errors for them
+        for extra_fc in function_calls[1:]:
+            function_responses.append({
+                "id": extra_fc.get("id", ""),
+                "name": extra_fc.get("name", ""),
+                "response": {"error": "Tek seferde sadece bir fonksiyon cagrilabilir. Sonraki adima gec."},
+            })
+
+        await self.gemini_ws.send(json.dumps({
+            "toolResponse": {
+                "functionResponses": function_responses,
+            }
+        }))
 
     async def _execute_function(self, fn_name: str, args: dict) -> dict:
         try:
@@ -345,25 +393,37 @@ class BrowserOpenAIBridge:
 
             elif fn_name == "get_package":
                 catalog = CatalogService(self.db)
-                pkg = catalog.get_package(args["package_id"])
-                return {"package": pkg} if pkg else {"error": "Paket bulunamadi"}
+                pkg = catalog.get_package(args.get("package_id", ""))
+                return {"package": pkg} if pkg else {"error": "Paket bulunamadı"}
+
+            elif fn_name == "select_package":
+                return await self._select_package(args)
 
             elif fn_name == "validate_tckn":
-                is_valid, error = validate_tckn(args["tckn"])
+                tckn_raw = args.get("tckn", "").strip().replace(" ", "")
+                # Uydurma TC koruması
+                fake_patterns = ["12345678901", "11111111111", "00000000000", "99999999999", "12345678900"]
+                if tckn_raw in fake_patterns:
+                    logger.warning(f"validate_tckn rejected FAKE tckn: {tckn_raw}")
+                    return {"valid": False, "error": "Bu numara gecersiz. Musteriden gercek TC kimlik numarasini iste. Kendin numara UYDURMA."}
+                if len(tckn_raw) != 11:
+                    logger.warning(f"validate_tckn called with {len(tckn_raw)} digits: {tckn_raw}")
+                    return {"valid": False, "error": f"TCKN {len(tckn_raw)} hane, 11 hane olmali. Musteriden eksik rakamlari al."}
+                is_valid, error = validate_tckn(tckn_raw)
                 if is_valid:
-                    self.ctx.tckn = args["tckn"]
+                    self.ctx.tckn = tckn_raw
+                    logger.info(f"TCKN validated: {tckn_raw[:3]}***")
+                    return {"valid": True}
                 else:
                     self.ctx.tckn_attempts += 1
-                return {"valid": is_valid, "error": error}
+                    logger.warning(f"TCKN invalid: {error}")
+                    return {"valid": False, "error": error}
 
             elif fn_name == "save_customer":
                 return await self._save_customer(args)
 
             elif fn_name == "create_application":
                 return await self._create_application()
-
-            elif fn_name == "update_state":
-                return await self._update_state(args)
 
             else:
                 return {"error": f"Bilinmeyen fonksiyon: {fn_name}"}
@@ -372,66 +432,46 @@ class BrowserOpenAIBridge:
             logger.error(f"Function execution error: {e}", exc_info=True)
             return {"error": str(e)}
 
-    async def _update_state(self, args: dict) -> dict:
-        new_state_str = args.get("new_state", "")
-        try:
-            new_state = CallState(new_state_str)
-            self.ctx.transition(new_state)
-        except ValueError:
-            return {"error": f"Gecersiz state: {new_state_str}"}
+    async def _select_package(self, args: dict) -> dict:
+        package_id = args.get("package_id", "")
+        catalog = CatalogService(self.db)
+        pkg = catalog.get_package(package_id)
+        if not pkg:
+            return {"error": "Paket bulunamadı"}
 
-        for field in [
-            "intent", "selected_package_id", "selected_team",
-            "selected_payment_type", "name", "surname", "tckn",
-            "birth_date", "phone", "city", "district", "neighborhood",
-            "street", "building_no", "apartment_no",
-        ]:
-            if field in args and args[field]:
-                setattr(self.ctx, field, args[field])
+        self.ctx.selected_package_id = package_id
+        self.ctx.selected_package_name = pkg["name"]
+        self.ctx.selected_category = pkg["category"]
+        self.ctx.selected_delivery = pkg["delivery"]
+        if args.get("payment_type"):
+            self.ctx.selected_payment_type = args["payment_type"]
+        if args.get("team"):
+            self.ctx.selected_team = args["team"]
 
-        if "selected_package_id" in args and args["selected_package_id"]:
-            catalog = CatalogService(self.db)
-            pkg = catalog.get_package(args["selected_package_id"])
-            if pkg:
-                self.ctx.selected_package_name = pkg["name"]
-                self.ctx.selected_category = pkg["category"]
-                self.ctx.selected_delivery = pkg["delivery"]
+        logger.info(f"Package selected: {pkg['name']} ({package_id})")
+        await self._send_browser({
+            "type": "package_selected",
+            "package_id": package_id,
+            "package_name": pkg["name"],
+        })
 
-        if "phone" in args and args["phone"]:
-            normalized, _ = normalize_phone(args["phone"])
-            if normalized:
-                self.ctx.phone = normalized
-
-        await self._send_browser({"type": "state_change", "state": self.ctx.state.value})
-        await self._update_session_prompt()
-
-        return {"state": self.ctx.state.value, "summary": self.ctx.get_summary()}
-
-    async def _update_session_prompt(self):
-        if not self.openai_ws:
-            return
-        catalog_summary = self._get_catalog_summary()
-        system_prompt = build_system_prompt(self.ctx, catalog_summary)
-        await self.openai_ws.send(json.dumps({
-            "type": "session.update",
-            "session": {"type": "realtime", "instructions": system_prompt},
-        }))
+        return {"status": "ok", "package": pkg["name"]}
 
     async def _save_customer(self, args: dict) -> dict:
         is_valid, err = validate_tckn(args.get("tckn", ""))
         if not is_valid:
-            return {"error": f"TCKN hatali: {err}"}
+            return {"error": f"TCKN hatalı: {err}"}
 
         phone = args.get("phone", "+905001234567")
         normalized_phone, err = normalize_phone(phone)
         if not normalized_phone:
-            return {"error": f"Telefon hatali: {err}"}
+            return {"error": f"Telefon hatalı: {err}"}
 
         birth_date = None
         if args.get("birth_date"):
             parsed, err = parse_date(args["birth_date"])
             if not parsed:
-                return {"error": f"Tarih hatali: {err}"}
+                return {"error": f"Tarih hatalı: {err}"}
             birth_date = parsed
 
         customer_svc = CustomerService(self.db)
@@ -458,64 +498,159 @@ class BrowserOpenAIBridge:
         return {"customer_id": str(customer.id), "status": "saved"}
 
     async def _create_application(self) -> dict:
+        logger.info(f"=== CREATE APPLICATION START === package={self.ctx.selected_package_id}, phone={self.ctx.phone}")
+
         if not self.ctx.selected_package_id:
-            return {"error": "Paket secilmedi"}
+            logger.error("CREATE APPLICATION FAILED: Paket seçilmedi!")
+            return {"error": "Paket seçilmedi. Önce select_package çağırmalısın."}
 
         catalog = CatalogService(self.db)
         pkg = catalog.get_package(self.ctx.selected_package_id)
         if not pkg:
-            return {"error": "Paket bulunamadi"}
+            logger.error(f"CREATE APPLICATION FAILED: Paket bulunamadı: {self.ctx.selected_package_id}")
+            return {"error": "Paket bulunamadı"}
 
         customer_svc = CustomerService(self.db)
         customer = customer_svc.find_by_phone(self.ctx.phone or "+905001234567")
         if not customer:
-            return {"error": "Musteri bulunamadi. Once save_customer cagirin."}
+            logger.error(f"CREATE APPLICATION FAILED: Müşteri bulunamadı, phone={self.ctx.phone}")
+            return {"error": "Müşteri bulunamadı. Önce save_customer çağır."}
 
-        app_svc = ApplicationService(self.db)
-        result = app_svc.create_application(
-            customer_id=customer.id,
-            package_id=pkg["id"],
-            payment_type=self.ctx.selected_payment_type or "credit_card_installment_12",
-            delivery=self.ctx.selected_delivery or "kutusuz",
-            team=self.ctx.selected_team,
-        )
+        try:
+            app_svc = ApplicationService(self.db)
+            result = app_svc.create_application(
+                customer_id=customer.id,
+                package_id=pkg["id"],
+                payment_type=self.ctx.selected_payment_type or "credit_card_installment_12",
+                delivery=self.ctx.selected_delivery or "kutusuz",
+                team=self.ctx.selected_team,
+            )
 
-        sms_svc = SMSService(self.db)
-        sms_svc.send_sms(
-            application_id=result["application_id"],
-            to_phone=self.ctx.phone or "+905001234567",
-            template="apply_link",
-            params={"apply_url": result["apply_url"]},
-        )
-        self.db.commit()
-
-        self.ctx.application_id = result["application_id"]
-        self.ctx.apply_url = result["apply_url"]
-
-        if self.call_session:
-            self.call_session.application_id = result["application_id"]
+            sms_svc = SMSService(self.db)
+            sms_svc.send_sms(
+                application_id=result["application_id"],
+                to_phone=self.ctx.phone or "+905001234567",
+                template="apply_link",
+                params={"apply_url": result["apply_url"]},
+            )
             self.db.commit()
 
-        return {
-            "application_id": result["application_id"],
-            "apply_url": result["apply_url"],
-            "sms_sent": True,
-        }
+            self.ctx.application_id = result["application_id"]
+            self.ctx.apply_url = result["apply_url"]
+
+            if self.call_session:
+                self.call_session.application_id = result["application_id"]
+                self.db.commit()
+
+            logger.info(f"=== CREATE APPLICATION SUCCESS === app_id={result['application_id']}, url={result['apply_url']}, sms_sent=True")
+
+            # Schedule auto-close after AI says goodbye
+            asyncio.create_task(self._auto_close_after_application())
+
+            return {
+                "application_id": result["application_id"],
+                "apply_url": result["apply_url"],
+                "sms_sent": True
+            }
+        except Exception as e:
+            logger.error(f"=== CREATE APPLICATION EXCEPTION === {e}", exc_info=True)
+            return {"error": f"Başvuru oluşturulamadı: {str(e)}"}
 
     def _get_catalog_summary(self) -> str:
         catalog = CatalogService(self.db)
         packages = catalog.list_packages()
         if not packages:
-            return "Paket katalogu bos."
+            return "Paket kataloğu boş."
         lines = []
         for pkg in packages:
             prices = ", ".join(
                 f"{p['payment_type']}: {p['amount_monthly']} {p['currency']}/ay"
                 for p in pkg["pricing"]
             )
-            team_info = f" (Takimlar: {', '.join(pkg['teams_supported'])})" if pkg["team_required"] else ""
+            team_info = f" (Takımlar: {', '.join(pkg['teams_supported'])})" if pkg["team_required"] else ""
             lines.append(f"- {pkg['name']} [{pkg['package_id']}]: {prices}{team_info}")
         return "\n".join(lines)
+
+    async def _silence_monitor(self):
+        """Monitor user silence after AI finishes speaking.
+        If user doesn't respond within 6s, prompt them. After 3 attempts, end call."""
+        SILENCE_TIMEOUT = 8.0
+        MAX_WARNINGS = 3
+
+        try:
+            while not self._browser_closed:
+                await asyncio.sleep(2)
+
+                # Only check when AI finished speaking and waiting for user
+                if (self._ai_turn_complete_time <= 0
+                        or self._ai_is_speaking
+                        or self._browser_closed):
+                    continue
+
+                # If Gemini got interrupted since last turn complete, user is speaking — skip
+                if self._user_speech_end_time > self._ai_turn_complete_time:
+                    self._silence_warnings = 0
+                    continue
+
+                elapsed = time.monotonic() - self._ai_turn_complete_time
+
+                if elapsed >= SILENCE_TIMEOUT * (self._silence_warnings + 1):
+                    self._silence_warnings += 1
+                    logger.info(f"Silence monitor: warning {self._silence_warnings}/{MAX_WARNINGS}, elapsed={elapsed:.1f}s")
+
+                    if self._silence_warnings >= MAX_WARNINGS:
+                        logger.info("Silence monitor: max warnings, ending call")
+                        await self._send_silence_prompt(
+                            "Sesinizi alamıyorum, görüşmeyi sonlandırıyorum. İyi günler dilerim."
+                        )
+                        await asyncio.sleep(4)
+                        await self._send_browser({"type": "call_ended", "reason": "Sessizlik - bağlantı kesildi"})
+                        self._browser_closed = True
+                        break
+                    elif self._silence_warnings == 1:
+                        await self._send_silence_prompt("Orada mısınız? Sesinizi alamıyorum.")
+                    elif self._silence_warnings == 2:
+                        await self._send_silence_prompt("Sesiniz gelmiyor, beni duyabiliyor musunuz?")
+
+        except asyncio.CancelledError:
+            pass
+        except Exception as e:
+            logger.error(f"Silence monitor error: {e}")
+
+    async def _auto_close_after_application(self):
+        """After application is created, wait for AI to finish speaking + 10s silence, then close."""
+        try:
+            # First wait for AI to finish speaking
+            while not self._browser_closed:
+                await asyncio.sleep(1)
+                if not self._ai_is_speaking and self._ai_turn_complete_time > 0:
+                    break
+
+            # Now wait 10 seconds of silence after AI finished
+            if not self._browser_closed:
+                await asyncio.sleep(10)
+
+            if not self._browser_closed:
+                logger.info("Auto-closing call after successful application")
+                await self._send_browser({"type": "call_ended", "reason": "Başvuru tamamlandı"})
+                self._browser_closed = True
+        except Exception as e:
+            logger.error(f"Auto-close error: {e}")
+
+    async def _send_silence_prompt(self, text: str):
+        """Send a text prompt to Gemini to make it speak a silence warning."""
+        try:
+            if self.gemini_ws and self.gemini_ws.state.name == "OPEN":
+                await self.gemini_ws.send(json.dumps({
+                    "clientContent": {
+                        "turns": [{"role": "user", "parts": [{"text": f"[SİSTEM: Müşteri sessiz. Şunu söyle: '{text}']"}]}],
+                        "turnComplete": True,
+                    }
+                }))
+                # Reset turn complete time so next silence check starts fresh
+                self._ai_turn_complete_time = time.monotonic()
+        except Exception as e:
+            logger.error(f"Silence prompt error: {e}")
 
     async def _create_call_session(self):
         try:
@@ -532,10 +667,9 @@ class BrowserOpenAIBridge:
 
     async def _finalize_call(self):
         try:
-            if USE_ELEVENLABS:
-                await self._kill_tts()
             if self.call_session:
-                self.call_session.ended_at = datetime.now(timezone.utc)
+                now = datetime.now(timezone.utc)
+                self.call_session.ended_at = now
                 self.call_session.state_history = self.ctx.state_history
                 self.call_session.flags = self.ctx.flags
                 if self.ctx.state == CallState.CLOSE_FAIL:
@@ -543,6 +677,30 @@ class BrowserOpenAIBridge:
                 elif self.ctx.state == CallState.CLOSE_SUCCESS:
                     self.call_session.status = "completed"
                 self.call_session.conversation_summary = self.ctx.get_summary()
+
+                # New fields
+                if self.call_session.started_at:
+                    delta = now - self.call_session.started_at
+                    self.call_session.duration_seconds = int(delta.total_seconds())
+                self.call_session.channel = "browser"
+                self.call_session.dropped_at_state = self.ctx.state.value
+                self.call_session.conversation_transcript = "\n".join(self._conversation_transcript)
+
+                # Update customer stats if customer exists
+                if self.call_session.customer_id:
+                    customer = self.db.query(Customer).filter(
+                        Customer.id == self.call_session.customer_id
+                    ).first()
+                    if customer:
+                        customer.total_calls = (customer.total_calls or 0) + 1
+                        customer.last_call_at = now
+                        if customer.total_calls == 1:
+                            customer.customer_segment = "new"
+                        elif self.call_session.status == "completed":
+                            customer.customer_segment = "converted"
+                        else:
+                            customer.customer_segment = "returning"
+
                 self.db.commit()
         except Exception as e:
             logger.error(f"Failed to finalize call: {e}")

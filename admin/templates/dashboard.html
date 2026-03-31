@@ -4,71 +4,274 @@
 {% block title %}Gösterge Paneli - Digiturk CRM{% endblock %}
 {% block page_title %}Gösterge Paneli{% endblock %}
 
+{% block extra_head %}
+<style>
+/* Dashboard specific styles */
+.dash-card {
+    background: var(--bg-card);
+    border: 1px solid var(--border-color);
+    border-radius: 16px;
+    padding: 24px;
+    position: relative;
+    overflow: hidden;
+    transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+    box-shadow: 0 1px 3px rgba(0,0,0,0.04);
+}
+.dash-card:hover {
+    transform: translateY(-4px);
+    box-shadow: 0 12px 40px rgba(0,0,0,0.08);
+}
+.dash-card .card-glow {
+    position: absolute;
+    top: -40px;
+    right: -40px;
+    width: 120px;
+    height: 120px;
+    border-radius: 50%;
+    filter: blur(50px);
+    opacity: 0.15;
+    transition: opacity 0.4s;
+}
+.dash-card:hover .card-glow { opacity: 0.25; }
+
+.dash-card .card-icon {
+    width: 52px;
+    height: 52px;
+    border-radius: 14px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.4rem;
+    margin-bottom: 18px;
+    position: relative;
+    z-index: 1;
+}
+.dash-card .card-label {
+    font-size: 0.72rem;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    font-weight: 700;
+    margin-bottom: 8px;
+}
+.dash-card .card-value {
+    font-size: 2.2rem;
+    font-weight: 800;
+    line-height: 1;
+    margin-bottom: 10px;
+    background: linear-gradient(135deg, var(--text-primary), var(--text-secondary));
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+}
+.dash-card .card-sub {
+    font-size: 0.78rem;
+    color: var(--text-muted);
+}
+
+/* Animated counter */
+@keyframes countUp {
+    from { opacity: 0; transform: translateY(10px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+.dash-card .card-value { animation: countUp 0.6s ease-out; }
+
+/* Staggered card entrance */
+.dash-row > [class*="col"]:nth-child(1) .dash-card { animation-delay: 0s; }
+.dash-row > [class*="col"]:nth-child(2) .dash-card { animation-delay: 0.05s; }
+.dash-row > [class*="col"]:nth-child(3) .dash-card { animation-delay: 0.1s; }
+.dash-row > [class*="col"]:nth-child(4) .dash-card { animation-delay: 0.15s; }
+.dash-row > [class*="col"]:nth-child(5) .dash-card { animation-delay: 0.2s; }
+.dash-row > [class*="col"]:nth-child(6) .dash-card { animation-delay: 0.25s; }
+
+@keyframes slideUp {
+    from { opacity: 0; transform: translateY(20px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+.dash-card { animation: slideUp 0.5s ease-out backwards; }
+
+/* Chart card */
+.chart-card {
+    animation: slideUp 0.6s ease-out backwards;
+    animation-delay: 0.3s;
+}
+.chart-card .card-header {
+    font-size: 0.85rem;
+    font-weight: 700;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+/* Recontact table improvements */
+.recontact-row { transition: all 0.2s; }
+.recontact-row:hover { background: #fefce8 !important; }
+.recontact-row td:first-child { border-left: 3px solid transparent; }
+.recontact-row.priority-high td:first-child { border-left-color: #ef4444; }
+.recontact-row.priority-medium td:first-child { border-left-color: #f59e0b; }
+.recontact-row.priority-low td:first-child { border-left-color: #94a3b8; }
+
+.score-bar {
+    width: 60px;
+    height: 6px;
+    background: #f1f5f9;
+    border-radius: 3px;
+    overflow: hidden;
+    display: inline-block;
+    vertical-align: middle;
+}
+.score-bar-fill {
+    height: 100%;
+    border-radius: 3px;
+    transition: width 1s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* Live pulse for active calls */
+.live-pulse {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: #10b981;
+    display: inline-block;
+    animation: livePulse 1.5s ease-in-out infinite;
+}
+@keyframes livePulse {
+    0%, 100% { box-shadow: 0 0 0 0 rgba(16,185,129,0.4); }
+    50% { box-shadow: 0 0 0 6px rgba(16,185,129,0); }
+}
+
+/* Quick action buttons */
+.action-btn {
+    padding: 14px 20px;
+    border-radius: 12px;
+    font-weight: 600;
+    font-size: 0.85rem;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    transition: all 0.3s;
+    border: 1px solid var(--border-color);
+    background: var(--bg-card);
+    color: var(--text-secondary);
+    text-decoration: none;
+}
+.action-btn:hover {
+    transform: translateX(4px);
+    border-color: var(--accent-blue);
+    color: var(--accent-blue);
+    box-shadow: 0 4px 12px rgba(59,130,246,0.1);
+}
+.action-btn i {
+    width: 36px;
+    height: 36px;
+    border-radius: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1rem;
+}
+</style>
+{% endblock %}
+
 {% block content %}
-<!-- KPI Kartları -->
-<div class="row g-4 mb-4">
-    <div class="col-xl-3 col-md-6">
-        <div class="stat-card">
-            <div class="stat-glow" style="background: var(--accent-blue);"></div>
-            <div class="stat-icon" style="background: #eff6ff; color: var(--accent-blue);">
+<!-- WELCOME BANNER -->
+<div class="mb-4" style="background:linear-gradient(135deg, rgba(99,102,241,0.06) 0%, rgba(139,92,246,0.04) 50%, rgba(16,185,129,0.03) 100%); border:1px solid var(--border-color); border-radius:20px; padding:28px 32px; animation:slideUp 0.4s ease-out;">
+    <div class="d-flex align-items-center justify-content-between">
+        <div>
+            <h2 style="font-size:1.4rem;font-weight:800;margin-bottom:6px;letter-spacing:-0.3px;">Merhaba, hoş geldiniz <span style="font-size:1.5rem;">&#x1f44b;</span></h2>
+            <p style="font-size:0.85rem;color:var(--text-secondary);margin:0;">AI Ses Asistanı çalışıyor. Bugünkü performansınızı aşağıda görebilirsiniz.</p>
+        </div>
+        <a href="/test-call" target="_blank" class="btn btn-primary d-none d-md-inline-flex" style="padding:10px 24px;font-size:0.85rem;gap:8px;">
+            <i class="bi bi-mic-fill"></i> Test Araması Başlat
+        </a>
+    </div>
+</div>
+
+<!-- ROW 1: 6 KPI Cards -->
+<div class="row g-3 mb-4 dash-row" hx-get="/api/dashboard-kpis" hx-trigger="every 30s" hx-swap="innerHTML" id="kpi-row">
+    <div class="col-xl-2 col-md-4 col-6">
+        <div class="dash-card">
+            <div class="card-glow" style="background:#6366f1;"></div>
+            <div class="card-icon" style="background:rgba(99,102,241,0.08);color:#6366f1;">
                 <i class="bi bi-telephone-fill"></i>
             </div>
-            <div class="stat-label">Toplam Çağrı</div>
-            <div class="stat-value">{{ total_calls }}</div>
-            <div class="stat-change"><i class="bi bi-circle-fill text-success" style="font-size:0.5rem"></i> {{ active_calls }} aktif çağrı</div>
+            <div class="card-label">Bugün Çağrı</div>
+            <div class="card-value" data-counter="{{ today_calls }}">{{ today_calls }}</div>
+            <div class="card-sub"><span class="live-pulse"></span> {{ active_calls }} aktif</div>
         </div>
     </div>
-    <div class="col-xl-3 col-md-6">
-        <div class="stat-card">
-            <div class="stat-glow" style="background: var(--accent-green);"></div>
-            <div class="stat-icon" style="background: #ecfdf5; color: var(--accent-green);">
+    <div class="col-xl-2 col-md-4 col-6">
+        <div class="dash-card">
+            <div class="card-glow" style="background:#10b981;"></div>
+            <div class="card-icon" style="background:rgba(16,185,129,0.08);color:#10b981;">
                 <i class="bi bi-file-earmark-check-fill"></i>
             </div>
-            <div class="stat-label">Toplam Başvuru</div>
-            <div class="stat-value">{{ total_applications }}</div>
-            <div class="stat-change">{{ pending_applications }} beklemede &middot; {{ link_sent }} link gönderildi</div>
+            <div class="card-label">Bugün Başvuru</div>
+            <div class="card-value" data-counter="{{ today_applications }}">{{ today_applications }}</div>
+            <div class="card-sub">{{ pending_applications }} beklemede</div>
         </div>
     </div>
-    <div class="col-xl-3 col-md-6">
-        <div class="stat-card">
-            <div class="stat-glow" style="background: var(--accent-purple);"></div>
-            <div class="stat-icon" style="background: #f5f3ff; color: var(--accent-purple);">
-                <i class="bi bi-graph-up-arrow"></i>
+    <div class="col-xl-2 col-md-4 col-6">
+        <div class="dash-card">
+            <div class="card-glow" style="background:#8b5cf6;"></div>
+            <div class="card-icon" style="background:rgba(139,92,246,0.08);color:#8b5cf6;">
+                <i class="bi bi-bullseye"></i>
             </div>
-            <div class="stat-label">Tamamlanma Oranı</div>
-            <div class="stat-value">%{{ completion_rate }}</div>
-            <div class="stat-change">{{ completed_applications }} başarılı başvuru</div>
+            <div class="card-label">Dönüşüm</div>
+            <div class="card-value" data-counter="{{ success_rate }}">%{{ success_rate }}</div>
+            <div class="card-sub">{{ completed_applications }} başarılı</div>
         </div>
     </div>
-    <div class="col-xl-3 col-md-6">
-        <div class="stat-card">
-            <div class="stat-glow" style="background: var(--accent-cyan);"></div>
-            <div class="stat-icon" style="background: #ecfeff; color: var(--accent-cyan);">
+    <div class="col-xl-2 col-md-4 col-6">
+        <div class="dash-card">
+            <div class="card-glow" style="background:#06b6d4;"></div>
+            <div class="card-icon" style="background:rgba(6,182,212,0.08);color:#06b6d4;">
+                <i class="bi bi-clock-fill"></i>
+            </div>
+            <div class="card-label">Ort. Süre</div>
+            <div class="card-value">{% set mins = (avg_duration // 60)|int %}{% set secs = (avg_duration % 60)|int %}{{ mins }} dk {{ secs }} sn</div>
+            <div class="card-sub">{{ total_calls }} toplam</div>
+        </div>
+    </div>
+    <div class="col-xl-2 col-md-4 col-6">
+        <div class="dash-card">
+            <div class="card-glow" style="background:#f59e0b;"></div>
+            <div class="card-icon" style="background:rgba(245,158,11,0.08);color:#f59e0b;">
+                <i class="bi bi-telephone-forward-fill"></i>
+            </div>
+            <div class="card-label">Tekrar Ara</div>
+            <div class="card-value" data-counter="{{ recontact_list|length }}">{{ recontact_list|length }}</div>
+            <div class="card-sub">kişi bekliyor</div>
+        </div>
+    </div>
+    <div class="col-xl-2 col-md-4 col-6">
+        <div class="dash-card">
+            <div class="card-glow" style="background:#ec4899;"></div>
+            <div class="card-icon" style="background:rgba(236,72,153,0.08);color:#ec4899;">
                 <i class="bi bi-people-fill"></i>
             </div>
-            <div class="stat-label">Müşteriler</div>
-            <div class="stat-value">{{ total_customers }}</div>
-            <div class="stat-change">{{ total_packages }} aktif paket</div>
+            <div class="card-label">Müşteri</div>
+            <div class="card-value" data-counter="{{ total_customers }}">{{ total_customers }}</div>
+            <div class="card-sub">{{ total_packages }} paket</div>
         </div>
     </div>
 </div>
 
-<!-- Grafikler -->
+<!-- ROW 2: Funnel + Team -->
 <div class="row g-4 mb-4">
     <div class="col-xl-8">
-        <div class="card">
-            <div class="card-header d-flex justify-content-between align-items-center">
-                <span><i class="bi bi-bar-chart-fill me-2" style="color:var(--accent-blue)"></i>Başvuru Durumu Dağılımı</span>
+        <div class="card chart-card">
+            <div class="card-header">
+                <i class="bi bi-funnel-fill" style="color:#3b82f6"></i> Dönüşüm Hunisi
             </div>
             <div class="card-body chart-container" style="height:320px">
-                <canvas id="applicationStatusChart"></canvas>
+                <canvas id="funnelChart"></canvas>
             </div>
         </div>
     </div>
     <div class="col-xl-4">
-        <div class="card">
+        <div class="card chart-card">
             <div class="card-header">
-                <i class="bi bi-trophy-fill me-2" style="color:var(--accent-orange)"></i>Takım Dağılımı
+                <i class="bi bi-trophy-fill" style="color:#f59e0b"></i> Takım Dağılımı
             </div>
             <div class="card-body chart-container" style="height:320px">
                 <canvas id="teamChart"></canvas>
@@ -77,50 +280,152 @@
     </div>
 </div>
 
-<!-- Hızlı İşlemler + Tablolar -->
+<!-- ROW 3: Hourly + Sentiment -->
+<div class="row g-4 mb-4">
+    <div class="col-xl-7">
+        <div class="card chart-card">
+            <div class="card-header">
+                <i class="bi bi-clock-history" style="color:#3b82f6"></i> Saatlik Çağrı Dağılımı
+            </div>
+            <div class="card-body chart-container" style="height:300px">
+                <canvas id="hourlyChart"></canvas>
+            </div>
+        </div>
+    </div>
+    <div class="col-xl-5">
+        <div class="card chart-card">
+            <div class="card-header">
+                <i class="bi bi-emoji-smile" style="color:#10b981"></i> Müşteri Duygu Durumu
+            </div>
+            <div class="card-body chart-container" style="height:300px">
+                <canvas id="sentimentChart"></canvas>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- ROW 4: Tekrar Aranacaklar -->
+<div class="row g-4 mb-4">
+    <div class="col-12">
+        <div class="card chart-card">
+            <div class="card-header d-flex justify-content-between align-items-center" style="background:linear-gradient(135deg, rgba(245,158,11,0.05), rgba(239,68,68,0.05));">
+                <span><i class="bi bi-telephone-forward-fill" style="color:#f59e0b"></i> Tekrar Aranacaklar</span>
+                <div class="d-flex align-items-center gap-2">
+                    <span class="badge bg-warning text-dark">{{ recontact_list|length }} kisi</span>
+                    <a href="/admin/recontact" class="btn-glass" style="font-size:0.75rem;padding:4px 12px;">Tümünü Gör <i class="bi bi-arrow-right"></i></a>
+                </div>
+            </div>
+            <div class="card-body p-0">
+                {% if recontact_list %}
+                <table class="table table-hover mb-0">
+                    <thead>
+                        <tr>
+                            <th>Müşteri</th>
+                            <th>Telefon</th>
+                            <th>Skor</th>
+                            <th>Öncelik</th>
+                            <th>Sebep</th>
+                            <th>Tarih</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for cs in recontact_list %}
+                        <tr class="recontact-row priority-{{ cs.recontact_priority }}">
+                            <td>
+                                {% if cs.customer %}
+                                    <a href="/admin/customers/{{ cs.customer.id }}" style="font-weight:600;color:var(--text-primary);text-decoration:none;">{{ cs.customer.name }} {{ cs.customer.surname }}</a>
+                                {% else %}
+                                    {{ cs.caller_phone or 'Bilinmiyor' }}
+                                {% endif %}
+                            </td>
+                            <td><code>{{ cs.caller_phone or (cs.customer.phone if cs.customer else '-') }}</code></td>
+                            <td>
+                                <div class="d-flex align-items-center gap-2">
+                                    <div class="score-bar">
+                                        <div class="score-bar-fill" data-width="{{ cs.recontact_score }}" style="width:0%;background:{% if cs.recontact_score >= 70 %}#ef4444{% elif cs.recontact_score >= 40 %}#f59e0b{% else %}#94a3b8{% endif %};"></div>
+                                    </div>
+                                    <small style="font-weight:600;">{{ cs.recontact_score }}</small>
+                                </div>
+                            </td>
+                            <td>
+                                <span class="badge {% if cs.recontact_priority == 'high' %}bg-danger{% elif cs.recontact_priority == 'medium' %}bg-warning text-dark{% else %}bg-secondary{% endif %}">
+                                    {{ cs.recontact_priority }}
+                                </span>
+                            </td>
+                            <td class="text-muted" style="max-width:300px;">{{ cs.recontact_reason or '-' }}</td>
+                            <td class="text-muted">{{ cs.started_at.strftime('%d.%m %H:%M') if cs.started_at else '-' }}</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+                {% else %}
+                <div class="text-center py-5">
+                    <i class="bi bi-check-circle text-success" style="font-size:2.5rem;"></i>
+                    <p class="text-muted mt-2 mb-0">Tekrar aranacak musteri bulunmuyor</p>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- ROW 5: Quick Actions + Recent Calls + Recent Apps -->
 <div class="row g-4 mb-4">
     <div class="col-xl-4">
-        <div class="card h-100">
+        <div class="card h-100 chart-card">
             <div class="card-header">
-                <i class="bi bi-plus-circle-fill me-2" style="color:var(--accent-purple)"></i>Hızlı İşlemler
+                <i class="bi bi-lightning-charge-fill" style="color:#8b5cf6"></i> Hızlı İşlemler
             </div>
             <div class="card-body d-flex flex-column gap-3">
-                <a href="/admin/packages#addPackage" class="btn btn-primary w-100" data-bs-toggle="modal" data-bs-target="#addPackageModal">
-                    <i class="bi bi-box-seam me-2"></i>Yeni Paket Ekle
+                <a href="/admin/packages" class="action-btn">
+                    <i style="background:#eff6ff;color:#3b82f6;"><span class="bi bi-box-seam"></span></i>
+                    Paket Yönetimi
                 </a>
-                <a href="/admin/customers" class="btn btn-glass w-100">
-                    <i class="bi bi-people me-2"></i>Müşterileri Görüntüle
+                <a href="/admin/customers" class="action-btn">
+                    <i style="background:#ecfdf5;color:#10b981;"><span class="bi bi-people"></span></i>
+                    Müşterileri Görüntüle
                 </a>
-                <a href="/admin/analytics" class="btn btn-glass w-100">
-                    <i class="bi bi-graph-up me-2"></i>Analitik Raporu
+                <a href="/admin/analytics" class="action-btn">
+                    <i style="background:#f5f3ff;color:#8b5cf6;"><span class="bi bi-graph-up"></span></i>
+                    Analitik Raporu
                 </a>
-                <a href="/test-call" target="_blank" class="btn btn-glass w-100">
-                    <i class="bi bi-mic me-2"></i>Test Araması Başlat
+                <a href="/admin/recontact" class="action-btn">
+                    <i style="background:#fff7ed;color:#f59e0b;"><span class="bi bi-telephone-forward"></span></i>
+                    Tekrar Aranacaklar
+                </a>
+                <a href="/test-call" target="_blank" class="action-btn">
+                    <i style="background:#fdf2f8;color:#ec4899;"><span class="bi bi-mic"></span></i>
+                    Test Aramasi Baslat
                 </a>
             </div>
         </div>
     </div>
     <div class="col-xl-4">
-        <div class="card h-100">
+        <div class="card h-100 chart-card">
             <div class="card-header d-flex justify-content-between align-items-center">
-                <span><i class="bi bi-telephone-fill me-2" style="color:var(--accent-blue)"></i>Son Çağrılar</span>
+                <span><i class="bi bi-telephone-fill" style="color:#3b82f6"></i> Son Çağrılar</span>
                 <a href="/admin/calls" class="btn-glass" style="font-size:0.75rem"><i class="bi bi-arrow-right"></i></a>
             </div>
             <div class="card-body p-0">
-                <table class="table table-hover">
+                <table class="table table-hover mb-0">
                     <thead>
-                        <tr><th>Telefon</th><th>Durum</th><th>Tarih</th></tr>
+                        <tr><th>Telefon</th><th>Sure</th><th>Durum</th><th>Tarih</th></tr>
                     </thead>
                     <tbody>
                         {% for call in recent_calls %}
                         <tr>
-                            <td><code style="color:var(--accent-blue)">{{ call.caller_phone or 'Bilinmiyor' }}</code></td>
+                            <td><code style="color:#3b82f6">{{ call.caller_phone or 'Bilinmiyor' }}</code></td>
+                            <td class="text-muted">
+                                {% if call.duration_seconds is not none %}
+                                    {{ (call.duration_seconds // 60) }}dk {{ (call.duration_seconds % 60) }}sn
+                                {% else %}-{% endif %}
+                            </td>
                             <td><span class="badge-status badge-status-{{ call.status }}">{{ call.status | status_tr }}</span></td>
                             <td class="text-muted">{{ call.started_at.strftime('%d.%m %H:%M') if call.started_at else '-' }}</td>
                         </tr>
                         {% endfor %}
                         {% if not recent_calls %}
-                        <tr><td colspan="3" class="text-center text-muted py-4">Henüz çağrı yok</td></tr>
+                        <tr><td colspan="4" class="text-center text-muted py-4">Henüz çağrı yok</td></tr>
                         {% endif %}
                     </tbody>
                 </table>
@@ -128,15 +433,15 @@
         </div>
     </div>
     <div class="col-xl-4">
-        <div class="card h-100">
+        <div class="card h-100 chart-card">
             <div class="card-header d-flex justify-content-between align-items-center">
-                <span><i class="bi bi-file-earmark-text-fill me-2" style="color:var(--accent-green)"></i>Son Başvurular</span>
+                <span><i class="bi bi-file-earmark-text-fill" style="color:#10b981"></i> Son Başvurular</span>
                 <a href="/admin/applications" class="btn-glass" style="font-size:0.75rem"><i class="bi bi-arrow-right"></i></a>
             </div>
             <div class="card-body p-0">
-                <table class="table table-hover">
+                <table class="table table-hover mb-0">
                     <thead>
-                        <tr><th>Müşteri</th><th>Takım</th><th>Durum</th></tr>
+                        <tr><th>Müşteri</th><th>Takim</th><th>Durum</th></tr>
                     </thead>
                     <tbody>
                         {% for app in recent_apps %}
@@ -156,6 +461,20 @@
     </div>
 </div>
 
+<!-- ROW 6: Application Status Chart -->
+<div class="row g-4 mb-4">
+    <div class="col-xl-8">
+        <div class="card chart-card">
+            <div class="card-header">
+                <i class="bi bi-bar-chart-fill" style="color:#3b82f6"></i> Başvuru Durumu Dağılımı
+            </div>
+            <div class="card-body chart-container" style="height:320px">
+                <canvas id="applicationStatusChart"></canvas>
+            </div>
+        </div>
+    </div>
+</div>
+
 <!-- Paket Ekleme Modal -->
 <div class="modal fade" id="addPackageModal" tabindex="-1">
     <div class="modal-dialog modal-lg">
@@ -169,11 +488,11 @@
                     <div class="row g-3">
                         <div class="col-md-6">
                             <label class="form-label">Paket ID</label>
-                            <input type="text" name="package_id" class="form-control" placeholder="ör: SUPER_SPORT" required>
+                            <input type="text" name="package_id" class="form-control" placeholder="or: SUPER_SPORT" required>
                         </div>
                         <div class="col-md-6">
                             <label class="form-label">Paket Adı</label>
-                            <input type="text" name="name" class="form-control" placeholder="ör: Süper Spor Paketi" required>
+                            <input type="text" name="name" class="form-control" placeholder="or: Super Spor Paketi" required>
                         </div>
                         <div class="col-md-4">
                             <label class="form-label">Kategori</label>
@@ -192,7 +511,7 @@
                         </div>
                         <div class="col-md-4">
                             <label class="form-label">Platform</label>
-                            <input type="text" name="platform" class="form-control" placeholder="ör: beIN CONNECT">
+                            <input type="text" name="platform" class="form-control" placeholder="or: beIN CONNECT">
                         </div>
                         <div class="col-md-6">
                             <div class="form-check mt-2">
@@ -202,7 +521,7 @@
                         </div>
                         <div class="col-md-6">
                             <label class="form-label">Desteklenen Takımlar</label>
-                            <input type="text" name="teams_supported" class="form-control" placeholder="Galatasaray,Fenerbahçe,Beşiktaş,Trabzonspor">
+                            <input type="text" name="teams_supported" class="form-control" placeholder="Galatasaray,Fenerbahce,Besiktas,Trabzonspor">
                             <small class="text-muted">Virgülle ayırın</small>
                         </div>
                         <div class="col-12"><hr></div>
@@ -237,7 +556,121 @@
 Chart.defaults.color = '#94a3b8';
 Chart.defaults.borderColor = '#f1f5f9';
 
-// Başvuru Durumu
+// === Conversion Funnel (horizontal bar) ===
+const funnelData = {{ conversion_funnel | tojson }};
+const funnelLabels = ["Karşılama", "Niyet", "Paket Keşfi", "Onay", "Bilgi Toplama", "Tamamlandı"];
+const funnelKeys = ["GREET", "INTENT", "PACKAGE_DISCOVERY", "CONFIRM_CHOICE", "COLLECT_IDENTITY", "CLOSE_SUCCESS"];
+const funnelValues = funnelKeys.map(k => funnelData[k] || 0);
+const funnelColors = ['#3b82f6', '#6366f1', '#8b5cf6', '#22d3ee', '#10b981', '#059669'];
+
+new Chart(document.getElementById('funnelChart'), {
+    type: 'bar',
+    data: {
+        labels: funnelLabels,
+        datasets: [{
+            data: funnelValues,
+            backgroundColor: funnelColors,
+            borderRadius: 8,
+            borderSkipped: false,
+            barPercentage: 0.7,
+        }]
+    },
+    options: {
+        indexAxis: 'y',
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: { legend: { display: false } },
+        scales: {
+            x: { beginAtZero: true, grid: { color: '#f1f5f9' }, ticks: { stepSize: 1 } },
+            y: { grid: { display: false } }
+        }
+    }
+});
+
+// === Team Distribution (doughnut) ===
+const teamData = {{ team_distribution | tojson }};
+const teamColors = { 'Galatasaray': '#FFD700', 'Fenerbahce': '#1E3A5F', 'Besiktas': '#333', 'Trabzonspor': '#8B0000' };
+const tL = Object.keys(teamData), tV = Object.values(teamData);
+new Chart(document.getElementById('teamChart'), {
+    type: 'doughnut',
+    data: {
+        labels: tL.length > 0 ? tL : ['Henüz veri yok'],
+        datasets: [{
+            data: tV.length > 0 ? tV : [1],
+            backgroundColor: tV.length > 0 ? tL.map(t => teamColors[t] || '#94a3b8') : ['#e2e8f0'],
+            borderWidth: 2, borderColor: '#fff', hoverOffset: 8
+        }]
+    },
+    options: {
+        responsive: true, maintainAspectRatio: false, cutout: '65%',
+        plugins: { legend: { position: 'bottom', labels: { padding: 16, usePointStyle: true, font: { size: 12 } } } }
+    }
+});
+
+// === Hourly Distribution (line with gradient fill) ===
+const hourlyData = {{ hourly_distribution | tojson }};
+const hourlyLabels = Array.from({length: 24}, (_, i) => i.toString());
+const hourlyValues = hourlyLabels.map(h => hourlyData[parseInt(h)] || 0);
+
+const hourlyCtx = document.getElementById('hourlyChart').getContext('2d');
+const hourlyGradient = hourlyCtx.createLinearGradient(0, 0, 0, 280);
+hourlyGradient.addColorStop(0, 'rgba(59, 130, 246, 0.2)');
+hourlyGradient.addColorStop(1, 'rgba(59, 130, 246, 0.01)');
+
+new Chart(hourlyCtx, {
+    type: 'line',
+    data: {
+        labels: hourlyLabels,
+        datasets: [{
+            label: 'Cagri',
+            data: hourlyValues,
+            fill: true,
+            backgroundColor: hourlyGradient,
+            borderColor: '#3b82f6',
+            borderWidth: 2,
+            pointBackgroundColor: '#3b82f6',
+            pointRadius: 3,
+            pointHoverRadius: 6,
+            tension: 0.4,
+        }]
+    },
+    options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: { legend: { display: false } },
+        scales: {
+            y: { beginAtZero: true, grid: { color: '#f1f5f9' }, ticks: { stepSize: 1 } },
+            x: { grid: { display: false } }
+        }
+    }
+});
+
+// === Sentiment Distribution (doughnut) ===
+const sentimentData = {{ sentiment_distribution | tojson }};
+const sentimentLabelMap = { 'positive': 'Pozitif', 'neutral': 'Nötr', 'negative': 'Negatif', 'angry': 'Kızgın' };
+const sentimentColorMap = { 'positive': '#10b981', 'neutral': '#94a3b8', 'negative': '#ef4444', 'angry': '#991b1b' };
+const sKeys = Object.keys(sentimentData);
+const sLabels = sKeys.map(k => sentimentLabelMap[k] || k);
+const sValues = sKeys.map(k => sentimentData[k]);
+const sColors = sKeys.map(k => sentimentColorMap[k] || '#94a3b8');
+
+new Chart(document.getElementById('sentimentChart'), {
+    type: 'doughnut',
+    data: {
+        labels: sLabels.length > 0 ? sLabels : ['Henüz veri yok'],
+        datasets: [{
+            data: sValues.length > 0 ? sValues : [1],
+            backgroundColor: sValues.length > 0 ? sColors : ['#e2e8f0'],
+            borderWidth: 2, borderColor: '#fff', hoverOffset: 8
+        }]
+    },
+    options: {
+        responsive: true, maintainAspectRatio: false, cutout: '65%',
+        plugins: { legend: { position: 'bottom', labels: { padding: 16, usePointStyle: true, font: { size: 12 } } } }
+    }
+});
+
+// === Application Status Chart (bar) ===
 new Chart(document.getElementById('applicationStatusChart'), {
     type: 'bar',
     data: {
@@ -262,24 +695,42 @@ new Chart(document.getElementById('applicationStatusChart'), {
     }
 });
 
-// Takım Dağılımı
-const teamData = {{ team_distribution | tojson }};
-const teamColors = { 'Galatasaray': '#FFD700', 'Fenerbahce': '#1E3A5F', 'Besiktas': '#333', 'Trabzonspor': '#8B0000' };
-const tL = Object.keys(teamData), tV = Object.values(teamData);
-new Chart(document.getElementById('teamChart'), {
-    type: 'doughnut',
-    data: {
-        labels: tL.length > 0 ? tL : ['Henüz veri yok'],
-        datasets: [{
-            data: tV.length > 0 ? tV : [1],
-            backgroundColor: tV.length > 0 ? tL.map(t => teamColors[t] || '#94a3b8') : ['#e2e8f0'],
-            borderWidth: 2, borderColor: '#fff', hoverOffset: 8
-        }]
-    },
-    options: {
-        responsive: true, maintainAspectRatio: false, cutout: '65%',
-        plugins: { legend: { position: 'bottom', labels: { padding: 16, usePointStyle: true, font: { size: 12 } } } }
+// === Counter Animation with easing ===
+document.querySelectorAll('[data-counter]').forEach(el => {
+    const target = parseFloat(el.dataset.counter) || 0;
+    if (target === 0) return;
+    const isPercent = el.textContent.trim().startsWith('%');
+    const duration = 1000;
+    const startTime = performance.now();
+
+    function easeOutCubic(t) { return 1 - Math.pow(1 - t, 3); }
+
+    function animate(now) {
+        const elapsed = now - startTime;
+        const progress = Math.min(elapsed / duration, 1);
+        const easedProgress = easeOutCubic(progress);
+        const current = Math.round(easedProgress * target);
+
+        if (isPercent) {
+            el.textContent = '%' + current;
+        } else {
+            el.textContent = current;
+        }
+
+        if (progress < 1) {
+            requestAnimationFrame(animate);
+        }
     }
+    requestAnimationFrame(animate);
+});
+
+// === Score bar animation on page load ===
+document.addEventListener('DOMContentLoaded', function() {
+    setTimeout(function() {
+        document.querySelectorAll('.score-bar-fill').forEach(bar => {
+            bar.style.width = bar.dataset.width + '%';
+        });
+    }, 300);
 });
 </script>
 {% endblock %}

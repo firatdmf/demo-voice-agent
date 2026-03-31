@@ -1,78 +1,165 @@
 {% extends "base.html" %}
 {% set active_page = "calls" %}
 
-{% block title %}Çağrı Detay - Digiturk CRM{% endblock %}
-{% block page_title %}Çağrı Detay{% endblock %}
+{% block title %}Çağrı Detay - Digiturk Bayi Admin{% endblock %}
 
 {% block content %}
-<div class="d-flex align-items-center gap-3 mb-4">
-    <a href="/admin/calls" class="btn-glass btn btn-sm"><i class="bi bi-arrow-left"></i></a>
-    <span class="badge-status badge-status-{{ call.status }}" style="font-size:0.85rem;padding:6px 14px">{{ call.status }}</span>
+<div class="d-flex align-items-center mb-4">
+    <a href="/admin/calls" class="btn btn-outline-secondary me-3"><i class="bi bi-arrow-left"></i></a>
+    <h2 class="mb-0">Çağrı Detay</h2>
+    <span class="badge badge-status-{{ call.status }} ms-3 fs-6">{{ call.status }}</span>
+    {% if call.dropped_at_state %}
+    <span class="badge bg-secondary ms-2 fs-6">{{ call.dropped_at_state }}</span>
+    {% endif %}
 </div>
 
 <div class="row g-4">
-    <div class="col-xl-6">
-        <div class="card h-100">
-            <div class="card-header">
-                <i class="bi bi-telephone-fill me-2" style="color:var(--accent-blue)"></i>Çağrı Bilgileri
-            </div>
+    <div class="col-md-6">
+        <div class="card">
+            <div class="card-header"><h5 class="mb-0">Çağrı Bilgileri</h5></div>
             <div class="card-body">
                 <table class="table table-borderless mb-0">
-                    <tr><td class="text-muted" style="width:160px">Twilio Call SID</td><td><code style="color:var(--accent-blue);font-size:0.78rem">{{ call.twilio_call_sid or '-' }}</code></td></tr>
-                    <tr><td class="text-muted">Arayan</td><td>
-                        <div class="d-flex align-items-center gap-2">
-                            <div style="width:28px;height:28px;border-radius:7px;background:#eff6ff;display:flex;align-items:center;justify-content:center">
-                                <i class="bi bi-telephone" style="color:var(--accent-blue);font-size:0.7rem"></i>
-                            </div>
-                            <code style="color:var(--accent-blue)">{{ call.caller_phone or '-' }}</code>
-                        </div>
-                    </td></tr>
+                    <tr><td class="text-muted" style="width:160px">Twilio Call SID</td><td><code>{{ call.twilio_call_sid or '-' }}</code></td></tr>
+                    <tr><td class="text-muted">Arayan</td><td>{{ call.caller_phone or '-' }}</td></tr>
                     <tr><td class="text-muted">Başlangıç</td><td>{{ call.started_at.strftime('%d.%m.%Y %H:%M:%S') if call.started_at else '-' }}</td></tr>
                     <tr><td class="text-muted">Bitiş</td><td>{{ call.ended_at.strftime('%d.%m.%Y %H:%M:%S') if call.ended_at else '-' }}</td></tr>
-                    {% if call.customer %}
-                    <tr><td class="text-muted">Müşteri</td><td style="font-weight:600"><a href="/admin/customers/{{ call.customer.id }}" style="color:var(--text-primary);text-decoration:none">{{ call.customer.name }} {{ call.customer.surname }}</a></td></tr>
-                    {% endif %}
-                    {% if call.application %}
-                    <tr><td class="text-muted">Başvuru</td><td><a href="/admin/applications/{{ call.application.id }}" style="color:var(--accent-blue)"><i class="bi bi-link-45deg me-1"></i>Başvuru Detay</a></td></tr>
+                    <tr>
+                        <td class="text-muted">Süre</td>
+                        <td>
+                            {% if call.duration_seconds is not none %}
+                                {% set mins = (call.duration_seconds // 60) %}
+                                {% set secs = (call.duration_seconds % 60) %}
+                                {{ mins }} dk {{ secs }} sn
+                            {% else %}
+                                -
+                            {% endif %}
+                        </td>
+                    </tr>
+                    <tr><td class="text-muted">Durum</td><td><span class="badge badge-status-{{ call.status }}">{{ call.status }}</span></td></tr>
+                    <tr><td class="text-muted">Kanal</td><td>{{ call.channel or '-' }}</td></tr>
+                    {% if call.dropped_at_state %}
+                    <tr><td class="text-muted">Kalınan Adım</td><td><span class="badge bg-info text-dark">{{ call.dropped_at_state }}</span></td></tr>
                     {% endif %}
                 </table>
             </div>
         </div>
     </div>
-    <div class="col-xl-6">
-        <div class="card h-100">
-            <div class="card-header">
-                <i class="bi bi-chat-text-fill me-2" style="color:var(--accent-green)"></i>Görüşme Özeti
-            </div>
+    <div class="col-md-6">
+        <div class="card">
+            <div class="card-header"><h5 class="mb-0">Görüşme Özeti</h5></div>
             <div class="card-body">
-                <p style="line-height:1.7">{{ call.conversation_summary or 'Özet yok.' }}</p>
+                <p>{{ call.conversation_summary or 'Özet yok.' }}</p>
+
+                {% if call.ai_call_summary %}
+                <h6 class="mt-3">AI Özet</h6>
+                <p class="text-secondary">{{ call.ai_call_summary }}</p>
+                {% endif %}
+
                 {% if call.flags %}
-                <div style="border-top:1px solid var(--border-color);padding-top:12px;margin-top:12px">
-                    <small class="text-muted text-uppercase" style="font-weight:600;letter-spacing:0.5px">İşaretler</small>
-                    <div class="mt-2 d-flex gap-2 flex-wrap">
-                        {% for flag in call.flags %}
-                        <span class="badge-status badge-status-pending">{{ flag }}</span>
-                        {% endfor %}
-                    </div>
-                </div>
+                <h6 class="mt-3">Flags</h6>
+                {% for flag in call.flags %}
+                <span class="badge bg-warning text-dark me-1">{{ flag }}</span>
+                {% endfor %}
                 {% endif %}
             </div>
         </div>
     </div>
 </div>
 
+<!-- Müşteri Bilgileri -->
+{% if call.customer %}
+<div class="card mt-4">
+    <div class="card-header"><h5 class="mb-0"><i class="bi bi-person-fill me-2"></i>Müşteri</h5></div>
+    <div class="card-body">
+        <div class="row">
+            <div class="col-md-6">
+                <table class="table table-borderless mb-0">
+                    <tr><td class="text-muted" style="width:120px">Ad Soyad</td><td><strong>{{ call.customer.name }} {{ call.customer.surname }}</strong></td></tr>
+                    <tr><td class="text-muted">Telefon</td><td>{{ call.customer.phone or '-' }}</td></tr>
+                    {% if call.customer.city %}
+                    <tr><td class="text-muted">Şehir</td><td>{{ call.customer.city }}</td></tr>
+                    {% endif %}
+                </table>
+            </div>
+            <div class="col-md-6 text-end">
+                <a href="/admin/customers/{{ call.customer.id }}" class="btn btn-glass"><i class="bi bi-arrow-right me-1"></i>Müşteri Detay</a>
+            </div>
+        </div>
+    </div>
+</div>
+{% endif %}
+
+<!-- Recontact Score -->
+{% if call.recontact_score %}
+<div class="card mt-4">
+    <div class="card-header"><h5 class="mb-0"><i class="bi bi-telephone-forward-fill me-2"></i>Tekrar Arama Skoru</h5></div>
+    <div class="card-body">
+        <div class="d-flex align-items-center gap-3 mb-2">
+            <div class="progress flex-grow-1" style="height: 24px; border-radius: 12px;">
+                <div class="progress-bar {% if call.recontact_score >= 70 %}bg-danger{% elif call.recontact_score >= 40 %}bg-warning{% else %}bg-info{% endif %}"
+                     role="progressbar"
+                     style="width: {{ call.recontact_score }}%"
+                     aria-valuenow="{{ call.recontact_score }}" aria-valuemin="0" aria-valuemax="100">
+                    {{ call.recontact_score }}/100
+                </div>
+            </div>
+            {% if call.recontact_priority %}
+            <span class="badge {% if call.recontact_priority == 'high' %}bg-danger{% elif call.recontact_priority == 'medium' %}bg-warning text-dark{% else %}bg-secondary{% endif %}">
+                {{ call.recontact_priority }}
+            </span>
+            {% endif %}
+        </div>
+        {% if call.recontact_reason %}
+        <p class="text-muted mb-0">{{ call.recontact_reason }}</p>
+        {% endif %}
+    </div>
+</div>
+{% endif %}
+
+<!-- Görüşme Transkripti -->
+{% if call.conversation_transcript %}
+<div class="card mt-4">
+    <div class="card-header"><h5 class="mb-0"><i class="bi bi-chat-left-text-fill me-2"></i>Görüşme Transkripti</h5></div>
+    <div class="card-body p-0">
+        <div style="background:linear-gradient(180deg, #f8fafc, #f0f4ff); border-radius:0 0 16px 16px; padding:24px; max-height:600px; overflow-y:auto;" id="transcriptChat">
+            {% for line in call.conversation_transcript.split('\n') %}
+            {% if line.strip() %}
+            {% if line.strip().startswith('AI:') %}
+            <div style="display:flex;justify-content:flex-start;margin-bottom:10px;">
+                <div style="max-width:75%;background:white;border:1px solid rgba(16,185,129,0.15);border-radius:14px 14px 14px 4px;padding:12px 16px;box-shadow:0 1px 3px rgba(0,0,0,0.03);">
+                    <div style="font-size:0.65rem;font-weight:700;color:rgba(16,185,129,0.6);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:4px;">AI Asistan</div>
+                    <div style="font-size:0.85rem;color:#064e3b;line-height:1.6;">{{ line.strip()[3:].strip() }}</div>
+                </div>
+            </div>
+            {% elif line.strip().startswith('Müşteri:') %}
+            <div style="display:flex;justify-content:flex-end;margin-bottom:10px;">
+                <div style="max-width:75%;background:linear-gradient(135deg,rgba(99,102,241,0.08),rgba(139,92,246,0.06));border:1px solid rgba(99,102,241,0.15);border-radius:14px 14px 4px 14px;padding:12px 16px;box-shadow:0 1px 3px rgba(0,0,0,0.03);">
+                    <div style="font-size:0.65rem;font-weight:700;color:rgba(99,102,241,0.6);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:4px;">Müşteri</div>
+                    <div style="font-size:0.85rem;color:#3730a3;line-height:1.6;">{{ line.strip()[8:].strip() }}</div>
+                </div>
+            </div>
+            {% else %}
+            <div style="text-align:center;margin-bottom:8px;">
+                <span style="font-size:0.75rem;color:var(--text-muted);background:rgba(148,163,184,0.08);padding:4px 12px;border-radius:12px;">{{ line.strip() }}</span>
+            </div>
+            {% endif %}
+            {% endif %}
+            {% endfor %}
+        </div>
+    </div>
+</div>
+{% endif %}
+
 {% if call.state_history %}
 <div class="card mt-4">
-    <div class="card-header">
-        <i class="bi bi-diagram-3-fill me-2" style="color:var(--accent-purple)"></i>Durum Geçişleri
-    </div>
+    <div class="card-header"><h5 class="mb-0">State Geçişleri</h5></div>
     <div class="card-body">
         <div class="d-flex flex-wrap gap-2 align-items-center">
             {% for transition in call.state_history %}
-            <span class="badge-status" style="background:#f8fafc;color:var(--text-secondary);border:1px solid #e2e8f0">{{ transition.get('from', '?') }}</span>
-            <i class="bi bi-arrow-right text-muted" style="font-size:0.7rem"></i>
+            <span class="badge bg-light text-dark border">{{ transition.get('from', '?') }}</span>
+            <i class="bi bi-arrow-right text-muted"></i>
             {% if loop.last %}
-            <span class="badge-status badge-status-completed">{{ transition.get('to', '?') }}</span>
+            <span class="badge bg-primary">{{ transition.get('to', '?') }}</span>
             {% endif %}
             {% endfor %}
         </div>

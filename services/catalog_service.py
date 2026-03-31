@@ -45,6 +45,7 @@ class CatalogService:
             "team_required": pkg.team_required,
             "teams_supported": pkg.teams_supported or [],
             "notes": pkg.notes or [],
+            "features": pkg.features or [],
             "pricing": [
                 {
                     "payment_type": p.payment_type,

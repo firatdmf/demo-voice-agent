@@ -6,104 +6,413 @@
     <title>Sesli Test - Digiturk AI</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" rel="stylesheet">
     <style>
-        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap');
         *{margin:0;padding:0;box-sizing:border-box}
-        :root{--bg:#0a0e1a;--bg2:#111827;--glass:rgba(255,255,255,0.04);--border:rgba(255,255,255,0.08);--t1:#f1f5f9;--t2:#94a3b8;--t3:#64748b;--accent:#3b82f6;--green:#10b981;--red:#ef4444;--yellow:#f59e0b;--purple:#8b5cf6}
+
+        :root{
+            --bg:#f0f4ff;--bg2:#f8faff;
+            --glass:rgba(255,255,255,0.6);--glass2:rgba(255,255,255,0.85);
+            --border:rgba(148,163,184,0.15);
+            --t1:#1e293b;--t2:#475569;--t3:#94a3b8;
+            --accent:#6366f1;--accent2:#8b5cf6;
+            --green:#10b981;--red:#ef4444;--yellow:#f59e0b;--purple:#8b5cf6;
+            --cyan:#06b6d4
+        }
+
         body{font-family:'Inter',sans-serif;background:var(--bg);color:var(--t1);min-height:100vh;overflow:hidden}
-        .bg-grad{position:fixed;inset:0;z-index:0;background:radial-gradient(ellipse 80% 50% at 20% 40%,rgba(59,130,246,.08) 0%,transparent 50%),radial-gradient(ellipse 60% 40% at 80% 60%,rgba(139,92,246,.06) 0%,transparent 50%),radial-gradient(ellipse 50% 30% at 50% 90%,rgba(16,185,129,.05) 0%,transparent 50%)}
-        .layout{position:relative;z-index:1;display:grid;grid-template-columns:1fr 380px;height:100vh}
 
-        /* LEFT */
-        .call-panel{display:flex;flex-direction:column;align-items:center;justify-content:center;padding:30px;position:relative}
-        .brand{position:absolute;top:24px;left:30px;display:flex;align-items:center;gap:10px}
-        .brand-logo{width:36px;height:36px;border-radius:10px;background:linear-gradient(135deg,var(--accent),var(--purple));display:flex;align-items:center;justify-content:center;font-size:1.1rem;color:#fff}
-        .brand-text{font-weight:600;font-size:1rem}.brand-sub{font-size:.7rem;color:var(--t3);font-weight:400}
-        .nav-back{position:absolute;top:28px;right:30px;color:var(--t3);text-decoration:none;font-size:.8rem;display:flex;align-items:center;gap:6px;transition:color .2s}
-        .nav-back:hover{color:var(--t1)}
+        .bg-grad{
+            position:fixed;inset:0;z-index:0;
+            background:
+                radial-gradient(ellipse 80% 50% at 20% 40%, rgba(99,102,241,0.06) 0%, transparent 50%),
+                radial-gradient(ellipse 60% 40% at 80% 60%, rgba(139,92,246,0.05) 0%, transparent 50%),
+                radial-gradient(ellipse 50% 30% at 50% 90%, rgba(16,185,129,0.04) 0%, transparent 50%)
+        }
 
-        .call-ring{width:180px;height:180px;border-radius:50%;display:flex;align-items:center;justify-content:center;margin:0 auto 24px;position:relative}
-        .call-ring::before{content:'';position:absolute;inset:0;border-radius:50%;border:2px solid var(--border);transition:all .4s}
-        .call-ring.active::before{border-color:var(--red);box-shadow:0 0 40px rgba(239,68,68,.2),inset 0 0 40px rgba(239,68,68,.03);animation:rpulse 2s ease-in-out infinite}
-        .call-ring.connecting::before{border-color:var(--yellow);box-shadow:0 0 30px rgba(245,158,11,.2);animation:rrot 1.5s linear infinite}
-        @keyframes rpulse{0%,100%{transform:scale(1);opacity:1}50%{transform:scale(1.05);opacity:.7}}
-        @keyframes rrot{0%{transform:rotate(0)}100%{transform:rotate(360deg)}}
+        .layout{position:relative;z-index:1;display:grid;grid-template-columns:1fr;height:100vh}
 
-        .call-btn{width:100px;height:100px;border-radius:50%;border:none;cursor:pointer;font-size:2.2rem;color:#fff;transition:all .3s;position:relative;z-index:2}
-        .call-btn.idle{background:linear-gradient(135deg,#10b981,#059669);box-shadow:0 8px 32px rgba(16,185,129,.3)}
-        .call-btn.idle:hover{transform:scale(1.08);box-shadow:0 12px 40px rgba(16,185,129,.4)}
-        .call-btn.active{background:linear-gradient(135deg,#ef4444,#dc2626);box-shadow:0 8px 32px rgba(239,68,68,.3)}
-        .call-btn.connecting{background:linear-gradient(135deg,#f59e0b,#d97706);box-shadow:0 8px 32px rgba(245,158,11,.3)}
+        /* ═══ LEFT PANEL ═══ */
+        .call-panel{display:flex;flex-direction:column;align-items:center;padding:30px;position:relative;height:100vh;overflow:hidden}
+        .call-center{flex:0 0 auto;display:flex;flex-direction:column;align-items:center;justify-content:center;padding-top:60px;padding-bottom:16px}
 
-        .call-status{font-size:.95rem;color:var(--t2);margin-bottom:8px;font-weight:500}
-        .call-timer{font-size:2rem;font-weight:300;color:var(--t3);font-variant-numeric:tabular-nums;letter-spacing:2px}
+        .brand{position:absolute;top:24px;left:30px;display:flex;align-items:center;gap:12px}
+        .brand-logo{
+            width:40px;height:40px;border-radius:12px;
+            background:linear-gradient(135deg,var(--accent),var(--accent2));
+            display:flex;align-items:center;justify-content:center;
+            font-size:1.2rem;color:#fff;
+            box-shadow:0 4px 12px rgba(99,102,241,0.3)
+        }
+        .brand-text{font-weight:700;font-size:1rem;color:var(--t1)}
+        .brand-sub{font-size:.7rem;color:var(--accent);font-weight:600;letter-spacing:1px;text-transform:uppercase}
+
+        .nav-back{
+            position:absolute;top:28px;right:30px;
+            color:var(--t3);text-decoration:none;font-size:.8rem;font-weight:500;
+            display:flex;align-items:center;gap:6px;
+            padding:8px 16px;border-radius:10px;
+            background:var(--glass2);border:1px solid var(--border);
+            transition:all .25s;backdrop-filter:blur(12px)
+        }
+        .nav-back:hover{color:var(--accent);border-color:rgba(99,102,241,0.2);transform:translateY(-1px)}
+
+        /* ═══ CIRCULAR VOICE ANIMATION ═══ */
+        .voice-orb-container{
+            position:relative;width:220px;height:220px;
+            margin:0 auto 28px;
+            display:flex;align-items:center;justify-content:center
+        }
+
+        /* Outer ripple rings */
+        .orb-ring{
+            position:absolute;border-radius:50%;
+            border:1.5px solid rgba(99,102,241,0.1);
+            transition:all 0.6s cubic-bezier(0.4,0,0.2,1);
+        }
+        .orb-ring-1{width:220px;height:220px;animation:orbFloat 6s ease-in-out infinite}
+        .orb-ring-2{width:190px;height:190px;animation:orbFloat 5s ease-in-out infinite 0.5s}
+        .orb-ring-3{width:160px;height:160px;animation:orbFloat 4s ease-in-out infinite 1s}
+
+        @keyframes orbFloat{
+            0%,100%{transform:scale(1);opacity:0.3}
+            50%{transform:scale(1.04);opacity:0.6}
+        }
+
+        /* Active state: rings pulse outward */
+        .voice-orb-container.active .orb-ring-1{
+            border-color:rgba(239,68,68,0.15);
+            animation:orbPulseOut 2s ease-in-out infinite
+        }
+        .voice-orb-container.active .orb-ring-2{
+            border-color:rgba(239,68,68,0.12);
+            animation:orbPulseOut 2s ease-in-out infinite 0.3s
+        }
+        .voice-orb-container.active .orb-ring-3{
+            border-color:rgba(239,68,68,0.1);
+            animation:orbPulseOut 2s ease-in-out infinite 0.6s
+        }
+
+        @keyframes orbPulseOut{
+            0%{transform:scale(1);opacity:0.6}
+            50%{transform:scale(1.12);opacity:0.2}
+            100%{transform:scale(1);opacity:0.6}
+        }
+
+        /* Connecting state: spinning rings */
+        .voice-orb-container.connecting .orb-ring-1{
+            border-color:rgba(245,158,11,0.2);
+            animation:orbSpin 3s linear infinite
+        }
+        .voice-orb-container.connecting .orb-ring-2{
+            border-color:rgba(245,158,11,0.15);
+            animation:orbSpin 2.5s linear infinite reverse
+        }
+        .voice-orb-container.connecting .orb-ring-3{
+            border-color:rgba(245,158,11,0.1);
+            animation:orbSpin 2s linear infinite
+        }
+
+        @keyframes orbSpin{
+            0%{transform:rotate(0deg) scale(1)}
+            50%{transform:rotate(180deg) scale(1.06)}
+            100%{transform:rotate(360deg) scale(1)}
+        }
+
+        /* Speaking state: rings morph and breathe dynamically */
+        .voice-orb-container.speaking .orb-ring-1{
+            border-color:rgba(99,102,241,0.2);
+            animation:orbSpeak1 1.2s ease-in-out infinite;
+            box-shadow:0 0 20px rgba(99,102,241,0.05)
+        }
+        .voice-orb-container.speaking .orb-ring-2{
+            border-color:rgba(139,92,246,0.18);
+            animation:orbSpeak2 1s ease-in-out infinite 0.15s;
+            box-shadow:0 0 16px rgba(139,92,246,0.04)
+        }
+        .voice-orb-container.speaking .orb-ring-3{
+            border-color:rgba(6,182,212,0.15);
+            animation:orbSpeak3 0.8s ease-in-out infinite 0.3s;
+            box-shadow:0 0 12px rgba(6,182,212,0.04)
+        }
+
+        @keyframes orbSpeak1{
+            0%,100%{transform:scale(1) rotate(0deg);border-width:1.5px}
+            25%{transform:scale(1.08) rotate(2deg);border-width:2.5px}
+            50%{transform:scale(1.15) rotate(0deg);border-width:3px}
+            75%{transform:scale(1.06) rotate(-2deg);border-width:2px}
+        }
+        @keyframes orbSpeak2{
+            0%,100%{transform:scale(1) rotate(0deg);border-width:1.5px}
+            30%{transform:scale(1.12) rotate(-3deg);border-width:2.5px}
+            60%{transform:scale(1.05) rotate(3deg);border-width:2px}
+        }
+        @keyframes orbSpeak3{
+            0%,100%{transform:scale(1);border-width:1.5px}
+            40%{transform:scale(1.18);border-width:3px}
+            70%{transform:scale(1.08);border-width:2px}
+        }
+
+        /* Glow effect behind orb */
+        .orb-glow{
+            position:absolute;width:140px;height:140px;border-radius:50%;
+            background:radial-gradient(circle, rgba(99,102,241,0.08) 0%, transparent 70%);
+            transition:all 0.6s;pointer-events:none
+        }
+        .voice-orb-container.active .orb-glow{
+            background:radial-gradient(circle, rgba(239,68,68,0.1) 0%, transparent 70%);
+            width:180px;height:180px
+        }
+        .voice-orb-container.speaking .orb-glow{
+            background:radial-gradient(circle, rgba(99,102,241,0.12) 0%, transparent 70%);
+            width:200px;height:200px;
+            animation:glowPulse 1s ease-in-out infinite
+        }
+        @keyframes glowPulse{
+            0%,100%{opacity:0.6;transform:scale(1)}
+            50%{opacity:1;transform:scale(1.1)}
+        }
+
+        /* Center button */
+        .call-btn{
+            width:100px;height:100px;border-radius:50%;border:none;cursor:pointer;
+            font-size:2.2rem;color:#fff;
+            transition:all .35s cubic-bezier(0.4,0,0.2,1);
+            position:relative;z-index:2;
+            box-shadow:0 8px 32px rgba(0,0,0,0.1)
+        }
+        .call-btn.idle{
+            background:linear-gradient(135deg,#10b981,#059669);
+            box-shadow:0 8px 32px rgba(16,185,129,0.25)
+        }
+        .call-btn.idle:hover{
+            transform:scale(1.08);
+            box-shadow:0 16px 48px rgba(16,185,129,0.35)
+        }
+        .call-btn.active{
+            background:linear-gradient(135deg,#ef4444,#dc2626);
+            box-shadow:0 8px 32px rgba(239,68,68,0.25)
+        }
+        .call-btn.connecting{
+            background:linear-gradient(135deg,#f59e0b,#d97706);
+            box-shadow:0 8px 32px rgba(245,158,11,0.25)
+        }
+
+        .call-status{font-size:.95rem;color:var(--t2);margin-bottom:8px;font-weight:600}
+        .call-timer{
+            font-size:2.2rem;font-weight:300;color:var(--t3);
+            font-variant-numeric:tabular-nums;letter-spacing:3px
+        }
         .call-timer.active{color:var(--t1)}
 
-        .waveform{display:flex;align-items:center;justify-content:center;gap:3px;height:50px;margin:24px 0;opacity:0;transition:opacity .4s}
-        .waveform.visible{opacity:1}
-        .waveform .bar{width:3px;border-radius:3px;background:linear-gradient(to top,var(--accent),var(--purple));transition:height .08s ease;min-height:4px}
+        /* ═══ CIRCULAR WAVEFORM ═══ */
+        .waveform-circle{
+            position:absolute;width:220px;height:220px;
+            pointer-events:none;opacity:0;transition:opacity .4s;z-index:1
+        }
+        .waveform-circle.visible{opacity:1}
 
-        .state-area{margin-top:16px;opacity:0;transition:opacity .3s}.state-area.visible{opacity:1}
-        .state-badge{display:inline-flex;align-items:center;gap:8px;padding:8px 18px;background:var(--glass);border:1px solid var(--border);border-radius:20px;font-size:.78rem;color:var(--t2)}
-        .state-dot{width:8px;height:8px;border-radius:50%;background:var(--accent);animation:dblink 1.5s ease-in-out infinite}
+        /* Legacy waveform (hidden, data source only) */
+        .waveform{display:none}
+
+        .state-area{margin-top:20px;opacity:0;transition:opacity .3s}
+        .state-area.visible{opacity:1}
+        .state-badge{
+            display:inline-flex;align-items:center;gap:8px;
+            padding:10px 20px;
+            background:var(--glass2);
+            border:1px solid var(--border);
+            border-radius:24px;font-size:.78rem;color:var(--t2);
+            backdrop-filter:blur(12px);
+            box-shadow:0 2px 8px rgba(0,0,0,0.04)
+        }
+        .state-dot{
+            width:8px;height:8px;border-radius:50%;
+            background:var(--accent);
+            animation:dblink 1.5s ease-in-out infinite;
+            box-shadow:0 0 6px rgba(99,102,241,0.3)
+        }
         @keyframes dblink{0%,100%{opacity:1}50%{opacity:.3}}
 
-        .transcript{position:absolute;bottom:20px;left:30px;right:30px;max-height:220px;overflow-y:auto;display:flex;flex-direction:column;gap:6px;padding-right:8px;opacity:0;transition:opacity .4s}
-        .transcript.visible{opacity:1}
-        .transcript::-webkit-scrollbar{width:4px}.transcript::-webkit-scrollbar-thumb{background:rgba(255,255,255,.1);border-radius:4px}
-        .msg{padding:10px 14px;border-radius:12px;font-size:.82rem;line-height:1.5;max-width:85%;animation:msgin .25s ease-out}
-        @keyframes msgin{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}
-        .msg.user{background:rgba(59,130,246,.12);border:1px solid rgba(59,130,246,.15);color:#93c5fd;align-self:flex-end}
-        .msg.ai{background:rgba(16,185,129,.1);border:1px solid rgba(16,185,129,.12);color:#6ee7b7;align-self:flex-start}
-        .msg.system{background:transparent;color:var(--t3);font-size:.72rem;align-self:center;padding:4px 12px}
+        /* ═══ TRANSCRIPT ═══ */
+        .transcript-wrapper{
+            flex:1 1 auto;width:100%;max-width:600px;
+            min-height:0;display:flex;flex-direction:column;
+            margin-top:12px;opacity:0;transition:opacity .4s;
+            border-radius:16px;
+            background:rgba(255,255,255,0.6);
+            border:1px solid var(--border);
+            backdrop-filter:blur(16px);
+            overflow:hidden
+        }
+        .transcript-wrapper.visible{opacity:1}
+        .transcript-header{
+            padding:12px 18px;
+            border-bottom:1px solid var(--border);
+            font-size:.75rem;font-weight:700;color:var(--t3);
+            text-transform:uppercase;letter-spacing:1.5px;
+            display:flex;align-items:center;gap:8px;
+            background:rgba(255,255,255,0.5);
+            flex-shrink:0
+        }
+        .transcript-header i{color:var(--accent);font-size:.85rem}
+        .transcript{
+            flex:1 1 auto;overflow-y:auto;
+            display:flex;flex-direction:column;gap:8px;
+            padding:14px 16px;min-height:0
+        }
+        .transcript::-webkit-scrollbar{width:4px}
+        .transcript::-webkit-scrollbar-thumb{background:rgba(99,102,241,0.15);border-radius:4px}
 
-        /* RIGHT */
-        .analysis{background:var(--bg2);border-left:1px solid var(--border);display:flex;flex-direction:column;height:100vh;overflow:hidden}
-        .analysis-hdr{padding:20px 20px 16px;border-bottom:1px solid var(--border)}
-        .analysis-hdr h3{font-size:.9rem;font-weight:600;display:flex;align-items:center;gap:8px;margin-bottom:4px}
+        .msg{
+            padding:10px 14px;border-radius:12px;
+            font-size:.82rem;line-height:1.6;max-width:82%;
+            animation:msgin .3s ease-out;
+            box-shadow:0 1px 3px rgba(0,0,0,0.03)
+        }
+        @keyframes msgin{from{opacity:0;transform:translateY(8px) scale(0.97)}to{opacity:1;transform:translateY(0) scale(1)}}
+
+        .msg.user{
+            background:linear-gradient(135deg,rgba(99,102,241,0.1),rgba(139,92,246,0.08));
+            border:1px solid rgba(99,102,241,0.15);
+            color:#3730a3;align-self:flex-end;
+            border-bottom-right-radius:4px;
+            font-weight:500
+        }
+        .msg.user::before{content:'Sen ';font-size:.65rem;font-weight:700;color:rgba(99,102,241,0.5);text-transform:uppercase;letter-spacing:.5px;display:block;margin-bottom:2px}
+
+        .msg.ai{
+            background:linear-gradient(135deg,rgba(16,185,129,0.08),rgba(6,182,212,0.06));
+            border:1px solid rgba(16,185,129,0.15);
+            color:#064e3b;align-self:flex-start;
+            border-bottom-left-radius:4px;
+            font-weight:500
+        }
+        .msg.ai::before{content:'AI Asistan ';font-size:.65rem;font-weight:700;color:rgba(16,185,129,0.5);text-transform:uppercase;letter-spacing:.5px;display:block;margin-bottom:2px}
+
+        .msg.system{
+            background:rgba(148,163,184,0.06);color:var(--t3);
+            font-size:.72rem;align-self:center;padding:6px 14px;
+            border-radius:20px;font-weight:500;
+            border:1px solid rgba(148,163,184,0.1)
+        }
+        .msg.system::before{display:none}
+
+        .msg.function{
+            background:linear-gradient(135deg,rgba(99,102,241,0.06),rgba(139,92,246,0.04));
+            border:1px dashed rgba(99,102,241,0.2);
+            color:#6366f1;align-self:center;
+            font-size:.72rem;font-weight:600;
+            padding:8px 14px;border-radius:20px;
+            font-family:'SF Mono','Fira Code',monospace;
+            letter-spacing:0.3px
+        }
+        .msg.function::before{display:none}
+
+        /* ═══ RIGHT PANEL ═══ */
+        .analysis{
+            background:var(--glass2);
+            border-left:1px solid var(--border);
+            display:flex;flex-direction:column;height:100vh;overflow:hidden;
+            backdrop-filter:blur(20px)
+        }
+        .analysis-hdr{
+            padding:22px 22px 18px;
+            border-bottom:1px solid var(--border);
+            background:rgba(255,255,255,0.5)
+        }
+        .analysis-hdr h3{
+            font-size:.92rem;font-weight:700;
+            display:flex;align-items:center;gap:8px;margin-bottom:4px;
+            color:var(--t1)
+        }
+        .analysis-hdr h3 i{color:var(--accent)}
         .analysis-hdr p{font-size:.72rem;color:var(--t3);margin:0}
-        .analysis-body{flex:1;overflow-y:auto;padding:16px 20px}
-        .analysis-body::-webkit-scrollbar{width:4px}.analysis-body::-webkit-scrollbar-thumb{background:rgba(255,255,255,.1);border-radius:4px}
+        .analysis-body{flex:1;overflow-y:auto;padding:18px 22px}
+        .analysis-body::-webkit-scrollbar{width:4px}
+        .analysis-body::-webkit-scrollbar-thumb{background:rgba(148,163,184,0.2);border-radius:4px}
 
-        .intent-card{background:var(--glass);border:1px solid var(--border);border-radius:16px;padding:20px;margin-bottom:16px}
-        .intent-label{font-size:.72rem;color:var(--t3);text-transform:uppercase;letter-spacing:1px;margin-bottom:12px}
-        .intent-meter{position:relative;height:8px;background:rgba(255,255,255,.06);border-radius:4px;overflow:hidden;margin-bottom:10px}
-        .intent-fill{height:100%;border-radius:4px;transition:width .8s cubic-bezier(.4,0,.2,1),background .5s;width:0%}
+        .intent-card{
+            background:var(--glass);border:1px solid var(--border);
+            border-radius:16px;padding:22px;margin-bottom:18px;
+            backdrop-filter:blur(8px)
+        }
+        .intent-label{
+            font-size:.72rem;color:var(--t3);text-transform:uppercase;
+            letter-spacing:1.5px;margin-bottom:14px;font-weight:700
+        }
+        .intent-meter{
+            position:relative;height:8px;
+            background:rgba(148,163,184,0.1);
+            border-radius:8px;overflow:hidden;margin-bottom:12px
+        }
+        .intent-fill{
+            height:100%;border-radius:8px;
+            transition:width .8s cubic-bezier(.4,0,.2,1),background .5s;
+            width:0%
+        }
         .intent-fill.low{background:linear-gradient(90deg,#ef4444,#f97316)}
         .intent-fill.medium{background:linear-gradient(90deg,#f59e0b,#eab308)}
         .intent-fill.high{background:linear-gradient(90deg,#10b981,#34d399)}
-        .intent-val{font-size:1.8rem;font-weight:700;display:flex;align-items:baseline;gap:4px}
+        .intent-val{font-size:1.8rem;font-weight:800;display:flex;align-items:baseline;gap:4px}
         .intent-val .pct{font-size:1rem;color:var(--t3);font-weight:400}
         .intent-val.low{color:#ef4444}.intent-val.medium{color:#f59e0b}.intent-val.high{color:#10b981}
-        .intent-desc{font-size:.75rem;color:var(--t2);margin-top:4px}
+        .intent-desc{font-size:.75rem;color:var(--t2);margin-top:6px;line-height:1.5}
 
-        .isec{margin-bottom:16px}
-        .isec-title{font-size:.72rem;color:var(--t3);text-transform:uppercase;letter-spacing:1px;margin-bottom:10px;display:flex;align-items:center;gap:6px}
-        .icard{background:var(--glass);border:1px solid var(--border);border-radius:12px;padding:14px 16px;margin-bottom:8px}
+        .isec{margin-bottom:18px}
+        .isec-title{
+            font-size:.72rem;color:var(--t3);text-transform:uppercase;
+            letter-spacing:1.5px;margin-bottom:12px;
+            display:flex;align-items:center;gap:6px;font-weight:700
+        }
+        .icard{
+            background:var(--glass);border:1px solid var(--border);
+            border-radius:14px;padding:14px 16px;margin-bottom:8px;
+            transition:all 0.2s
+        }
+        .icard:hover{border-color:rgba(99,102,241,0.15);background:rgba(255,255,255,0.8)}
         .irow{display:flex;align-items:center;gap:10px}
-        .iicon{width:28px;height:28px;border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:.8rem;flex-shrink:0}
-        .iicon.mood{background:rgba(59,130,246,.15);color:#60a5fa}
-        .iicon.positive{background:rgba(16,185,129,.15);color:#34d399}
-        .iicon.objection{background:rgba(239,68,68,.15);color:#f87171}
-        .iicon.info{background:rgba(245,158,11,.15);color:#fbbf24}
-        .itext{font-size:.78rem;color:var(--t2);line-height:1.4}.itext strong{color:var(--t1);font-weight:500}
+        .iicon{
+            width:30px;height:30px;border-radius:10px;
+            display:flex;align-items:center;justify-content:center;
+            font-size:.82rem;flex-shrink:0
+        }
+        .iicon.mood{background:rgba(99,102,241,0.08);color:#6366f1}
+        .iicon.positive{background:rgba(16,185,129,0.08);color:#10b981}
+        .iicon.objection{background:rgba(239,68,68,0.08);color:#ef4444}
+        .iicon.info{background:rgba(245,158,11,0.08);color:#f59e0b}
+        .itext{font-size:.78rem;color:var(--t2);line-height:1.5}
+        .itext strong{color:var(--t1);font-weight:600}
 
-        .ci-card{background:var(--glass);border:1px solid var(--border);border-radius:12px;padding:14px 16px;margin-bottom:16px}
-        .ci-row{display:flex;justify-content:space-between;font-size:.75rem;padding:4px 0}
-        .ci-row .lb{color:var(--t3)}.ci-row .vl{color:var(--t1);font-weight:500}
+        .ci-card{
+            background:var(--glass);border:1px solid var(--border);
+            border-radius:14px;padding:16px 18px;margin-bottom:18px
+        }
+        .ci-row{display:flex;justify-content:space-between;font-size:.78rem;padding:6px 0}
+        .ci-row:not(:last-child){border-bottom:1px solid rgba(148,163,184,0.08)}
+        .ci-row .lb{color:var(--t3);font-weight:500}
+        .ci-row .vl{color:var(--t1);font-weight:600}
 
         .tags{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px}
-        .tag{padding:4px 10px;border-radius:6px;font-size:.7rem;font-weight:500}
-        .tag.positive{background:rgba(16,185,129,.12);color:#34d399;border:1px solid rgba(16,185,129,.2)}
-        .tag.negative{background:rgba(239,68,68,.12);color:#f87171;border:1px solid rgba(239,68,68,.2)}
-        .tag.neutral{background:rgba(148,163,184,.1);color:#94a3b8;border:1px solid rgba(148,163,184,.15)}
+        .tag{padding:5px 12px;border-radius:8px;font-size:.7rem;font-weight:600}
+        .tag.positive{background:rgba(16,185,129,0.08);color:#059669;border:1px solid rgba(16,185,129,0.15)}
+        .tag.negative{background:rgba(239,68,68,0.08);color:#dc2626;border:1px solid rgba(239,68,68,0.15)}
+        .tag.neutral{background:rgba(148,163,184,0.08);color:#64748b;border:1px solid rgba(148,163,184,0.12)}
 
-        .ai-sum{background:linear-gradient(135deg,rgba(139,92,246,.08),rgba(59,130,246,.06));border:1px solid rgba(139,92,246,.15);border-radius:12px;padding:16px;margin-bottom:16px}
-        .ai-sum-text{font-size:.78rem;color:var(--t2);line-height:1.6;white-space:pre-wrap}
+        .ai-sum{
+            background:linear-gradient(135deg,rgba(99,102,241,0.04),rgba(139,92,246,0.03));
+            border:1px solid rgba(99,102,241,0.1);
+            border-radius:14px;padding:18px;margin-bottom:18px
+        }
+        .ai-sum-text{font-size:.78rem;color:var(--t2);line-height:1.7;white-space:pre-wrap}
+
         .empty-st{text-align:center;padding:60px 20px;color:var(--t3)}
-        .empty-st i{font-size:2.5rem;margin-bottom:12px;display:block;opacity:.3}
+        .empty-st i{font-size:2.5rem;margin-bottom:14px;display:block;opacity:.2;color:var(--accent)}
         .empty-st p{font-size:.82rem}
 
-        @media(max-width:900px){.layout{grid-template-columns:1fr;grid-template-rows:1fr auto}.analysis{height:40vh;border-left:none;border-top:1px solid var(--border)}.transcript{max-height:120px}}
+        @media(max-width:900px){
+            .layout{grid-template-columns:1fr}
+            .transcript-wrapper{max-height:150px}
+        }
     </style>
 </head>
 <body>
@@ -113,283 +422,737 @@
     <div class="call-panel">
         <div class="brand">
             <div class="brand-logo"><i class="bi bi-broadcast"></i></div>
-            <div><div class="brand-text">Digiturk AI</div><div class="brand-sub">Sesli Test Arayuzu</div></div>
+            <div><div class="brand-text">Digiturk AI</div><div class="brand-sub">Sesli Test Arayüzü</div></div>
         </div>
         <a href="/admin/" class="nav-back"><i class="bi bi-grid"></i> Admin Panel</a>
-        <div style="text-align:center">
-            <div class="call-ring" id="callRing">
+        <div class="call-center">
+            <div class="voice-orb-container" id="voiceOrb">
+                <div class="orb-glow"></div>
+                <div class="orb-ring orb-ring-1"></div>
+                <div class="orb-ring orb-ring-2"></div>
+                <div class="orb-ring orb-ring-3"></div>
+                <svg class="waveform-circle" id="waveformCircle" viewBox="0 0 220 220">
+                    <g id="waveformBars" transform="translate(110,110)"></g>
+                </svg>
                 <button class="call-btn idle" id="callBtn" onclick="toggleCall()">
                     <i class="bi bi-telephone-fill" id="callIcon"></i>
                 </button>
             </div>
-            <div class="call-status" id="statusText">Baslatmak icin tiklayin</div>
+            <div class="call-status" id="statusText">Başlatmak için tıklayın</div>
             <div class="call-timer" id="callTimer">00:00</div>
             <div class="waveform" id="waveform"></div>
             <div class="state-area" id="stateArea">
                 <div class="state-badge"><div class="state-dot"></div><span id="currentState">GREET</span></div>
             </div>
         </div>
-        <div class="transcript" id="transcriptArea"></div>
+        <div class="transcript-wrapper" id="transcriptWrapper">
+            <div class="transcript-header"><i class="bi bi-chat-dots-fill"></i> Konuşma Metni</div>
+            <div class="transcript" id="transcriptArea"></div>
+        </div>
     </div>
 
     <!-- RIGHT -->
-    <div class="analysis">
-        <div class="analysis-hdr">
-            <h3><i class="bi bi-stars"></i> Canli AI Analiz</h3>
-            <p>Gorusme sirasinda gercek zamanli musteri analizi</p>
-        </div>
-        <div class="analysis-body" id="analysisBody">
-            <div class="empty-st" id="emptyState"><i class="bi bi-soundwave"></i><p>Gorusme basladiginda AI analizi burada gorunecek</p></div>
-            <div id="intentSection" style="display:none">
-                <div class="intent-card">
-                    <div class="intent-label">Satin Alma Egilimi</div>
-                    <div class="intent-meter"><div class="intent-fill low" id="intentFill"></div></div>
-                    <div class="intent-val low" id="intentVal">0<span class="pct">%</span></div>
-                    <div class="intent-desc" id="intentDesc">Henuz yeterli veri yok</div>
-                </div>
-                <div class="isec">
-                    <div class="isec-title"><i class="bi bi-person"></i> Musteri Bilgileri</div>
-                    <div class="ci-card">
-                        <div class="ci-row"><span class="lb">Isim</span><span class="vl" id="ciName">-</span></div>
-                        <div class="ci-row"><span class="lb">Ilgi Alani</span><span class="vl" id="ciInterest">-</span></div>
-                        <div class="ci-row"><span class="lb">Paket</span><span class="vl" id="ciPackage">-</span></div>
-                        <div class="ci-row"><span class="lb">Takim</span><span class="vl" id="ciTeam">-</span></div>
-                        <div class="ci-row"><span class="lb">Durum</span><span class="vl" id="ciState">Karsilama</span></div>
-                    </div>
-                </div>
-                <div class="isec">
-                    <div class="isec-title"><i class="bi bi-emoji-smile"></i> Duygu Durumu</div>
-                    <div class="icard" id="moodCard">
-                        <div class="irow">
-                            <div class="iicon mood"><i class="bi bi-emoji-neutral" id="moodIcon"></i></div>
-                            <div class="itext" id="moodText">Analiz bekleniyor...</div>
-                        </div>
-                    </div>
-                </div>
-                <div class="isec">
-                    <div class="isec-title"><i class="bi bi-lightning"></i> Anahtar Sinyaller</div>
-                    <div id="signalsList"></div>
-                </div>
-                <div class="isec">
-                    <div class="isec-title"><i class="bi bi-tags"></i> Anahtar Kelimeler</div>
-                    <div class="tags" id="keywordTags"></div>
-                </div>
-                <div class="isec">
-                    <div class="isec-title"><i class="bi bi-robot"></i> AI Ozet</div>
-                    <div class="ai-sum"><div class="ai-sum-text" id="aiSumText">Gorusme devam ederken analiz guncelleniyor...</div></div>
-                </div>
-            </div>
-        </div>
-    </div>
+    <!-- AI Analiz paneli şimdilik devre dışı -->
+    <div id="intentSection" style="display:none"></div>
+    <div style="display:none" id="emptyState"></div>
 </div>
 
 <script>
-let isActive=false,ws=null,mediaStream=null,audioContext=null,processor=null,analyser=null;
-let startTime=null,durationInterval=null,playbackContext=null,audioQueue=[],isPlaying=false,currentSource=null;
-let analysisInterval=null,conversationLog=[],lastAnalysisCount=0;
+/**
+ * Digiturk AI Voice Agent -- Browser Client
+ *
+ * Architecture:
+ *   Browser <--WS--> Our Server <--WS--> Gemini Live API (STT + LLM + TTS)
+ *
+ * Browser sends: 16kHz PCM audio (mic) via AudioWorklet (low-latency)
+ * Browser receives: 24kHz PCM audio (voice), transcripts, state changes
+ * Mic is muted during voice playback (echo prevention)
+ */
 
-const callBtn=document.getElementById('callBtn'),callIcon=document.getElementById('callIcon');
-const callRing=document.getElementById('callRing'),statusText=document.getElementById('statusText');
-const callTimer=document.getElementById('callTimer'),waveform=document.getElementById('waveform');
-const stateArea=document.getElementById('stateArea'),currentState=document.getElementById('currentState');
-const transcriptArea=document.getElementById('transcriptArea');
+const CAPTURE_RATE = 16000;
+const PLAYBACK_RATE = 24000;
 
-for(let i=0;i<32;i++){const b=document.createElement('div');b.className='bar';b.style.height='4px';waveform.appendChild(b)}
+let isActive = false, ws = null, mediaStream = null;
+let captureContext = null, workletNode = null, analyser = null;
+let startTime = null, durationInterval = null;
+let playbackContext = null, nextPlayTime = 0, scheduledSources = [];
+let micMuted = false, unmutePending = null;
+let analysisInterval = null, conversationLog = [], lastAnalysisCount = 0;
+let isSpeaking = false;
 
-function addMessage(text,type){
-    const d=document.createElement('div');d.className='msg '+type;d.textContent=text;
-    transcriptArea.appendChild(d);transcriptArea.scrollTop=transcriptArea.scrollHeight;
-    if(type==='user'||type==='ai') conversationLog.push({role:type,text,ts:Date.now()});
+let userSpeechEndTime = 0;
+let waitingForAIResponse = false;
+
+const callBtn = document.getElementById('callBtn'), callIcon = document.getElementById('callIcon');
+const voiceOrb = document.getElementById('voiceOrb'), statusText = document.getElementById('statusText');
+const callTimer = document.getElementById('callTimer'), waveform = document.getElementById('waveform');
+const stateArea = document.getElementById('stateArea'), currentState = document.getElementById('currentState');
+const transcriptArea = document.getElementById('transcriptArea');
+const transcriptWrapper = document.getElementById('transcriptWrapper');
+const waveformCircle = document.getElementById('waveformCircle');
+const waveformBarsGroup = document.getElementById('waveformBars');
+
+// Create hidden waveform bars for data
+for (let i = 0; i < 32; i++) {
+    const b = document.createElement('div');
+    b.className = 'bar';
+    b.style.height = '4px';
+    waveform.appendChild(b);
 }
 
-function updateDuration(){
-    if(!startTime)return;
-    const e=Math.floor((Date.now()-startTime)/1000);
-    callTimer.textContent=String(Math.floor(e/60)).padStart(2,'0')+':'+String(e%60).padStart(2,'0');
+// Create circular waveform bars (SVG)
+const CIRC_BARS = 48;
+const CIRC_RADIUS = 68;
+for (let i = 0; i < CIRC_BARS; i++) {
+    const angle = (i / CIRC_BARS) * 360;
+    const rad = (angle * Math.PI) / 180;
+    const rect = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
+    rect.setAttribute('width', '3');
+    rect.setAttribute('height', '4');
+    rect.setAttribute('rx', '1.5');
+    rect.setAttribute('fill', 'url(#barGradient)');
+    rect.setAttribute('opacity', '0.4');
+    rect.setAttribute('transform', `rotate(${angle}) translate(0, -${CIRC_RADIUS})`);
+    rect.setAttribute('x', '-1.5');
+    rect.setAttribute('data-index', i);
+    waveformBarsGroup.appendChild(rect);
 }
 
-async function toggleCall(){if(isActive)stopCall();else await startCall()}
+// Add gradient definition
+const defs = document.createElementNS('http://www.w3.org/2000/svg', 'defs');
+const grad = document.createElementNS('http://www.w3.org/2000/svg', 'linearGradient');
+grad.setAttribute('id', 'barGradient');
+grad.setAttribute('x1', '0');
+grad.setAttribute('y1', '0');
+grad.setAttribute('x2', '0');
+grad.setAttribute('y2', '1');
+const stop1 = document.createElementNS('http://www.w3.org/2000/svg', 'stop');
+stop1.setAttribute('offset', '0%');
+stop1.setAttribute('stop-color', '#6366f1');
+const stop2 = document.createElementNS('http://www.w3.org/2000/svg', 'stop');
+stop2.setAttribute('offset', '100%');
+stop2.setAttribute('stop-color', '#8b5cf6');
+grad.appendChild(stop1);
+grad.appendChild(stop2);
+defs.appendChild(grad);
+waveformCircle.insertBefore(defs, waveformCircle.firstChild);
 
-async function startCall(){
-    try{
-        callBtn.className='call-btn connecting';callRing.className='call-ring connecting';
-        statusText.textContent='Baglaniyor...';
-        mediaStream=await navigator.mediaDevices.getUserMedia({audio:{echoCancellation:true,noiseSuppression:true,autoGainControl:false,channelCount:1}});
-        const p=location.protocol==='https:'?'wss:':'ws:';
-        ws=new WebSocket(p+'//'+location.host+'/test-call/ws');
-        ws.onopen=()=>{
-            isActive=true;callBtn.className='call-btn active';callRing.className='call-ring active';
-            callIcon.className='bi bi-telephone-x-fill';statusText.textContent='Gorusme aktif';
-            callTimer.classList.add('active');waveform.classList.add('visible');
-            stateArea.classList.add('visible');transcriptArea.classList.add('visible');
-            document.getElementById('emptyState').style.display='none';
-            document.getElementById('intentSection').style.display='block';
-            startTime=Date.now();durationInterval=setInterval(updateDuration,1000);
-            conversationLog=[];lastAnalysisCount=0;
-            addMessage('Baglanti kuruldu','system');startAudioCapture();startAnalysisLoop();
+function addMessage(text, type) {
+    const d = document.createElement('div');
+    d.className = 'msg ' + type;
+    d.textContent = text;
+    transcriptArea.appendChild(d);
+    transcriptArea.scrollTop = transcriptArea.scrollHeight;
+    if (type === 'user' || type === 'ai') conversationLog.push({ role: type, text, ts: Date.now() });
+}
+
+function updateDuration() {
+    if (!startTime) return;
+    const e = Math.floor((Date.now() - startTime) / 1000);
+    callTimer.textContent = String(Math.floor(e / 60)).padStart(2, '0') + ':' + String(e % 60).padStart(2, '0');
+}
+
+function arrayBufferToBase64(buffer) {
+    const bytes = new Uint8Array(buffer);
+    let binary = '';
+    const chunkSize = 8192;
+    for (let i = 0; i < bytes.length; i += chunkSize) {
+        const chunk = bytes.subarray(i, i + chunkSize);
+        binary += String.fromCharCode.apply(null, chunk);
+    }
+    return btoa(binary);
+}
+
+async function toggleCall() { if (isActive) stopCall(); else await startCall(); }
+
+async function startCall() {
+    try {
+        callBtn.className = 'call-btn connecting';
+        voiceOrb.className = 'voice-orb-container connecting';
+        statusText.textContent = 'Bağlanıyor...';
+
+        mediaStream = await navigator.mediaDevices.getUserMedia({
+            audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true, sampleRate: CAPTURE_RATE, channelCount: 1 }
+        });
+
+        const proto = location.protocol === 'https:' ? 'wss' : 'ws';
+        ws = new WebSocket(`${proto}://${location.host}/test-call/ws`);
+
+        ws.onopen = () => {
+            isActive = true;
+            callBtn.className = 'call-btn active';
+            voiceOrb.className = 'voice-orb-container active';
+            callIcon.className = 'bi bi-telephone-x-fill';
+            statusText.textContent = 'Görüşme aktif';
+            callTimer.classList.add('active');
+            waveformCircle.classList.add('visible');
+            stateArea.classList.add('visible');
+            transcriptWrapper.classList.add('visible');
+            document.getElementById('emptyState').style.display = 'none';
+            document.getElementById('intentSection').style.display = 'block';
+            startTime = Date.now();
+            durationInterval = setInterval(updateDuration, 1000);
+            conversationLog = [];
+            lastAnalysisCount = 0;
+            addMessage('Sunucuya bağlanıldı', 'system');
+            startAudioCapture();
+            startAnalysisLoop();
         };
-        ws.onmessage=e=>handleServerMessage(JSON.parse(e.data));
-        ws.onclose=()=>{if(isActive){addMessage('Baglanti kapandi','system');stopCall()}};
-        ws.onerror=()=>{addMessage('Baglanti hatasi','system');stopCall()};
-    }catch(err){statusText.textContent='Hata: '+err.message;callBtn.className='call-btn idle';callRing.className='call-ring'}
+
+        ws.onmessage = e => {
+            try { handleServerMessage(JSON.parse(e.data)); }
+            catch (err) { console.error('Parse error:', err); }
+        };
+
+        ws.onclose = () => {
+            if (isActive) { addMessage('Bağlantı kapandı', 'system'); stopCall(); }
+        };
+        ws.onerror = err => {
+            console.error('WS error:', err);
+            addMessage('Bağlantı hatası', 'system');
+            stopCall();
+        };
+
+    } catch (err) {
+        statusText.textContent = 'Hata: ' + err.message;
+        callBtn.className = 'call-btn idle';
+        voiceOrb.className = 'voice-orb-container';
+        if (mediaStream) { mediaStream.getTracks().forEach(t => t.stop()); mediaStream = null; }
+    }
 }
 
-function stopCall(){
-    isActive=false;callBtn.className='call-btn idle';callRing.className='call-ring';
-    callIcon.className='bi bi-telephone-fill';statusText.textContent='Gorusme sonlandi';
-    callTimer.classList.remove('active');waveform.classList.remove('visible');
-    if(durationInterval)clearInterval(durationInterval);if(analysisInterval)clearInterval(analysisInterval);
-    if(ws){ws.close();ws=null}if(processor){processor.disconnect();processor=null}
-    if(audioContext){audioContext.close();audioContext=null}
-    if(mediaStream){mediaStream.getTracks().forEach(t=>t.stop());mediaStream=null}
-    if(playbackContext){playbackContext.close();playbackContext=null}
-    audioQueue=[];isPlaying=false;
-    if(conversationLog.length>0)triggerAnalysis(true);
+function stopCall() {
+    isActive = false;
+    isSpeaking = false;
+    callBtn.className = 'call-btn idle';
+    voiceOrb.className = 'voice-orb-container';
+    callIcon.className = 'bi bi-telephone-fill';
+    statusText.textContent = 'Görüşme sonlandı';
+    callTimer.classList.remove('active');
+    if (durationInterval) clearInterval(durationInterval);
+    if (analysisInterval) clearInterval(analysisInterval);
+    if (unmutePending) clearTimeout(unmutePending);
+    if (ws) { ws.close(); ws = null; }
+    if (workletNode) { workletNode.disconnect(); workletNode = null; }
+    if (captureContext) { captureContext.close(); captureContext = null; }
+    if (mediaStream) { mediaStream.getTracks().forEach(t => t.stop()); mediaStream = null; }
+    clearPlayback();
+    if (playbackContext) { playbackContext.close(); playbackContext = null; }
+    micMuted = false;
+    if (conversationLog.length > 0) triggerAnalysis(true);
 }
 
-// VAD - hassas ayarlar
-const VAD={minAbsRms:0.008,
-    noiseMultiplier: 2.5,
-    speechStartHoldMs:120,
-    speechEndHoldMs:500,
-    noiseCalibrationMs:800,
-    preBufferMs:400,
-    peakMin:0.015,
-    rmsSmoothing:0.5};
-const vadState={speaking:false,aboveMs:0,belowMs:0,noiseRms:0.01,smoothedRms:0,calibratedMs:0,preBuffers:[],preBuffersMs:0};
-function resetVadState(){Object.assign(vadState,{speaking:false,aboveMs:0,belowMs:0,noiseRms:0.01,smoothedRms:0,calibratedMs:0,preBuffers:[],preBuffersMs:0})}
+async function startAudioCapture() {
+    captureContext = new AudioContext({ sampleRate: CAPTURE_RATE });
+    const source = captureContext.createMediaStreamSource(mediaStream);
 
-function float32ToPCM16(f){const o=new Int16Array(f.length);for(let i=0;i<f.length;i++){const s=Math.max(-1,Math.min(1,f[i]));o[i]=s<0?s*0x8000:s*0x7FFF}return o}
-function pcm16ToBase64(p){const b=new Uint8Array(p.buffer);let s='';for(let i=0;i<b.length;i++)s+=String.fromCharCode(b[i]);return btoa(s)}
-function sendAudioChunk(p){if(!ws||ws.readyState!==WebSocket.OPEN)return;ws.send(JSON.stringify({type:'audio',audio:pcm16ToBase64(p)}))}
+    analyser = captureContext.createAnalyser();
+    analyser.fftSize = 128;
+    source.connect(analyser);
 
-function startAudioCapture(){
-    audioContext=new AudioContext({sampleRate:24000});
-    const src=audioContext.createMediaStreamSource(mediaStream);
-    analyser=audioContext.createAnalyser();analyser.fftSize=64;src.connect(analyser);
-    resetVadState();
-    processor=audioContext.createScriptProcessor(1024,1,1);src.connect(processor);processor.connect(audioContext.destination);
-    processor.onaudioprocess=e=>{
-        if(!isActive||!ws||ws.readyState!==WebSocket.OPEN)return;
-        const inp=e.inputBuffer.getChannelData(0),frameMs=(inp.length/24000)*1000;
-        let sum=0,peak=0;
-        for(let i=0;i<inp.length;i++){const v=inp[i];sum+=v*v;const a=Math.abs(v);if(a>peak)peak=a}
-        const frameRms=Math.sqrt(sum/Math.max(1,inp.length));
-        vadState.smoothedRms=VAD.rmsSmoothing*vadState.smoothedRms+(1-VAD.rmsSmoothing)*frameRms;
-        if(vadState.calibratedMs<VAD.noiseCalibrationMs&&!vadState.speaking){vadState.noiseRms=vadState.noiseRms*.9+vadState.smoothedRms*.1;vadState.calibratedMs+=frameMs}
-        const thS=Math.max(VAD.minAbsRms,vadState.noiseRms*VAD.noiseMultiplier),thE=thS*.7;
-        const pcm16=float32ToPCM16(inp);
-        if(!vadState.speaking){
-            vadState.preBuffers.push(pcm16);vadState.preBuffersMs+=frameMs;
-            while(vadState.preBuffersMs>VAD.preBufferMs&&vadState.preBuffers.length>1){vadState.preBuffers.shift();vadState.preBuffersMs=Math.max(0,vadState.preBuffersMs-frameMs)}
-            if(vadState.smoothedRms>=thS&&peak>=VAD.peakMin)vadState.aboveMs+=frameMs;
-            else{vadState.aboveMs=Math.max(0,vadState.aboveMs-frameMs*.75);vadState.noiseRms=vadState.noiseRms*.98+vadState.smoothedRms*.02}
-            if(vadState.aboveMs>=VAD.speechStartHoldMs){
-                vadState.speaking=true;vadState.belowMs=0;
-                for(const b of vadState.preBuffers)sendAudioChunk(b);
-                vadState.preBuffers=[];vadState.preBuffersMs=0;sendAudioChunk(pcm16);
+    const workletCode = `
+        class CaptureProcessor extends AudioWorkletProcessor {
+            constructor() {
+                super();
+                this.buffer = [];
+                this.noiseFloor = 0.005;
+                this.speechFrames = 0;
+                this.silenceFrames = 0;
+                this.isSpeech = false;
+                this.aiSpeaking = false;
+
+                // === VOICE FINGERPRINT (spectral envelope) ===
+                // Calibrate first 3 seconds of user speech to learn their voice profile
+                this.calibrated = false;
+                this.calibrating = false;
+                this.calibFrames = [];
+                this.CALIB_NEEDED = 40; // ~40 speech frames = ~3.2 seconds of speech
+                // Spectral profile: 8-bin energy distribution (DFT approximation)
+                this.voiceProfile = null; // [bin0, bin1, ..., bin7] normalized
+                this.BINS = 8;
+                this.MATCH_THRESHOLD = 0.55; // cosine similarity threshold
+
+                this.port.onmessage = (e) => {
+                    if (e.data && e.data.type === 'aiState') {
+                        this.aiSpeaking = e.data.speaking;
+                    }
+                    if (e.data && e.data.type === 'startCalibration') {
+                        this.calibrating = true;
+                        this.calibrated = false;
+                        this.calibFrames = [];
+                        this.voiceProfile = null;
+                    }
+                };
+            }
+
+            // Compute 8-bin spectral energy via simple DFT bands
+            computeSpectrum(samples) {
+                const N = samples.length;
+                const bins = new Float32Array(this.BINS);
+                const binSize = Math.floor(N / 2 / this.BINS);
+                // Simple magnitude estimation per band
+                for (let b = 0; b < this.BINS; b++) {
+                    let re = 0, im = 0;
+                    const centerFreq = (b + 0.5) * binSize;
+                    for (let n = 0; n < N; n++) {
+                        const angle = 2 * Math.PI * centerFreq * n / N;
+                        re += samples[n] * Math.cos(angle);
+                        im -= samples[n] * Math.sin(angle);
+                    }
+                    bins[b] = Math.sqrt(re * re + im * im) / N;
+                }
+                // Normalize
+                let maxVal = 0;
+                for (let i = 0; i < this.BINS; i++) if (bins[i] > maxVal) maxVal = bins[i];
+                if (maxVal > 0) for (let i = 0; i < this.BINS; i++) bins[i] /= maxVal;
+                return bins;
+            }
+
+            // Cosine similarity between two vectors
+            cosineSim(a, b) {
+                let dot = 0, magA = 0, magB = 0;
+                for (let i = 0; i < a.length; i++) {
+                    dot += a[i] * b[i];
+                    magA += a[i] * a[i];
+                    magB += b[i] * b[i];
+                }
+                magA = Math.sqrt(magA);
+                magB = Math.sqrt(magB);
+                return (magA > 0 && magB > 0) ? dot / (magA * magB) : 0;
+            }
+
+            process(inputs) {
+                const input = inputs[0][0];
+                if (!input) return true;
+
+                // RMS energy + ZCR
+                let sum = 0, zeroCrossings = 0;
+                for (let i = 0; i < input.length; i++) {
+                    sum += input[i] * input[i];
+                    this.buffer.push(input[i]);
+                    if (i > 0 && ((input[i] >= 0 && input[i-1] < 0) || (input[i] < 0 && input[i-1] >= 0))) {
+                        zeroCrossings++;
+                    }
+                }
+                const rms = Math.sqrt(sum / input.length);
+                const zcr = zeroCrossings;
+                const isSpeechLikeZCR = zcr >= 5 && zcr <= 55;
+
+                // Noise floor (only during silence, AI not speaking)
+                if (!this.isSpeech && !this.aiSpeaking) {
+                    this.noiseFloor = this.noiseFloor * 0.97 + rms * 0.03;
+                    if (this.noiseFloor < 0.002) this.noiseFloor = 0.002;
+                }
+
+                // Thresholds
+                const echoMultiplier = this.aiSpeaking ? 8.0 : 1.0;
+                const speechThreshold = this.noiseFloor * 8.0 * echoMultiplier;
+                const silenceThreshold = this.noiseFloor * 2.5;
+                const isLoudEnough = rms > speechThreshold;
+                const basicSpeech = isLoudEnough && isSpeechLikeZCR;
+
+                // === CALIBRATION PHASE ===
+                if (this.calibrating && !this.calibrated && basicSpeech && !this.aiSpeaking) {
+                    const spectrum = this.computeSpectrum(input);
+                    this.calibFrames.push(spectrum);
+
+                    if (this.calibFrames.length >= this.CALIB_NEEDED) {
+                        // Average all calibration frames into voice profile
+                        this.voiceProfile = new Float32Array(this.BINS);
+                        for (const frame of this.calibFrames) {
+                            for (let i = 0; i < this.BINS; i++) this.voiceProfile[i] += frame[i];
+                        }
+                        let mx = 0;
+                        for (let i = 0; i < this.BINS; i++) {
+                            this.voiceProfile[i] /= this.calibFrames.length;
+                            if (this.voiceProfile[i] > mx) mx = this.voiceProfile[i];
+                        }
+                        if (mx > 0) for (let i = 0; i < this.BINS; i++) this.voiceProfile[i] /= mx;
+
+                        this.calibrated = true;
+                        this.calibrating = false;
+                        this.port.postMessage({ type: 'calibrated' });
+                    }
+                }
+
+                // === VOICE MATCH CHECK ===
+                let voiceMatch = true; // default: pass if not calibrated
+                if (this.calibrated && this.voiceProfile && basicSpeech) {
+                    const currentSpectrum = this.computeSpectrum(input);
+                    const similarity = this.cosineSim(currentSpectrum, this.voiceProfile);
+                    voiceMatch = similarity >= this.MATCH_THRESHOLD;
+                }
+
+                const isSpeechCandidate = basicSpeech && voiceMatch;
+
+                if (isSpeechCandidate) {
+                    this.speechFrames++;
+                    this.silenceFrames = 0;
+                    if (this.speechFrames >= 7 && !this.isSpeech) {
+                        this.isSpeech = true;
+                        this.port.postMessage({ type: 'vad', speaking: true });
+                    }
+                } else {
+                    if (rms < silenceThreshold || !isSpeechLikeZCR) {
+                        this.silenceFrames++;
+                        this.speechFrames = 0;
+                        if (this.silenceFrames >= 10 && this.isSpeech) {
+                            this.isSpeech = false;
+                            this.port.postMessage({ type: 'vad', speaking: false });
+                        }
+                    }
+                }
+
+                // Send audio in 320 sample (20ms) frames
+                if (this.buffer.length >= 320) {
+                    const pcm16 = new Int16Array(this.buffer.length);
+                    for (let i = 0; i < this.buffer.length; i++) {
+                        const s = Math.max(-1, Math.min(1, this.buffer[i]));
+                        pcm16[i] = s < 0 ? s * 0x8000 : s * 0x7FFF;
+                    }
+                    this.port.postMessage({ type: 'audio', buffer: pcm16.buffer }, [pcm16.buffer]);
+                    this.buffer = [];
+                }
+                return true;
+            }
+        }
+        registerProcessor('capture-processor', CaptureProcessor);
+    `;
+    const blob = new Blob([workletCode], { type: 'application/javascript' });
+    const url = URL.createObjectURL(blob);
+    await captureContext.audioWorklet.addModule(url);
+    URL.revokeObjectURL(url);
+
+    workletNode = new AudioWorkletNode(captureContext, 'capture-processor');
+    let userSpeaking = false;
+    let voiceCalibrated = false;
+
+    // Start voice calibration — first ~3 sec of user speech trains the voice profile
+    workletNode.port.postMessage({ type: 'startCalibration' });
+    addMessage('🎤 Ses profiliniz kalibre ediliyor — konuşmaya başlayın...', 'system');
+
+    workletNode.port.onmessage = (e) => {
+        if (!isActive || !ws || ws.readyState !== WebSocket.OPEN) return;
+
+        const msg = e.data;
+
+        // Calibration complete
+        if (msg.type === 'calibrated') {
+            voiceCalibrated = true;
+            addMessage('✅ Ses profiliniz tanındı — artık sadece sizin sesiniz algılanacak', 'system');
+            console.log('🎤 Voice profile calibrated');
+            return;
+        }
+
+        // VAD event — duck/unduck volume
+        if (msg.type === 'vad') {
+            userSpeaking = msg.speaking;
+            if (msg.speaking) {
+                duckVolume();
+            } else {
+                unduckVolume();
             }
             return;
         }
-        sendAudioChunk(pcm16);
-        if(frameRms<thE)vadState.belowMs+=frameMs;else vadState.belowMs=Math.max(0,vadState.belowMs-frameMs*.5);
-        if(vadState.belowMs>=VAD.speechEndHoldMs){vadState.speaking=false;vadState.aboveMs=0;vadState.belowMs=0}
+
+        // Audio data
+        if (msg.type === 'audio') {
+            const base64 = arrayBufferToBase64(msg.buffer);
+            ws.send(JSON.stringify({ type: 'audio', audio: base64 }));
+        }
     };
+    source.connect(workletNode);
+
     updateVisualizer();
-    playbackContext=new AudioContext({sampleRate:24000});
+
+    playbackContext = new AudioContext({ sampleRate: PLAYBACK_RATE });
+    nextPlayTime = 0;
 }
 
-function updateVisualizer(){
-    if(!analyser||!isActive)return;
-    const d=new Uint8Array(analyser.frequencyBinCount);analyser.getByteFrequencyData(d);
-    waveform.querySelectorAll('.bar').forEach((b,i)=>{b.style.height=Math.max(4,(d[i]||0)/3.5)+'px'});
+function updateVisualizer() {
+    if (!analyser || !isActive) return;
+    const d = new Uint8Array(analyser.frequencyBinCount);
+    analyser.getByteFrequencyData(d);
+
+    // Update circular waveform bars
+    const bars = waveformBarsGroup.querySelectorAll('rect');
+    bars.forEach((bar, i) => {
+        const dataIdx = Math.floor((i / CIRC_BARS) * d.length);
+        const val = d[dataIdx] || 0;
+        const height = Math.max(3, val / 6);
+        bar.setAttribute('height', height);
+        bar.setAttribute('opacity', Math.max(0.15, val / 300));
+    });
+
     requestAnimationFrame(updateVisualizer);
 }
 
-function handleServerMessage(data){
-    switch(data.type){
-        case 'audio':playAudio(data.audio);break;
-        case 'transcript_ai':addMessage(data.text,'ai');break;
-        case 'transcript_user':addMessage(data.text,'user');break;
-        case 'state_change':currentState.textContent=data.state;updateCustomerState(data.state);break;
-        case 'clear_audio':audioQueue=[];isPlaying=false;if(currentSource){try{currentSource.onended=null;currentSource.stop()}catch(e){}currentSource=null}break;
-        case 'function_call':handleFnCallUI(data.name,data.args);break;
-        case 'error':addMessage('Hata: '+data.message,'system');break;
+function handleServerMessage(data) {
+    const type = data.type;
+
+    if (type === 'audio') {
+        if (waitingForAIResponse && userSpeechEndTime > 0) {
+            const latency = Math.round(performance.now() - userSpeechEndTime);
+            console.log(`Turn latency: ${latency}ms (user done -> AI first audio)`);
+            waitingForAIResponse = false;
+        }
+        if (data.audio) playAudioGapless(data.audio);
+        return;
     }
-}
 
-function playAudio(b64){
-    if(!playbackContext)return;
-    const bin=atob(b64),bytes=new Uint8Array(bin.length);
-    for(let i=0;i<bin.length;i++)bytes[i]=bin.charCodeAt(i);
-    const pcm=new Int16Array(bytes.buffer),f32=new Float32Array(pcm.length);
-    for(let i=0;i<pcm.length;i++)f32[i]=pcm[i]/32768.0;
-    const buf=playbackContext.createBuffer(1,f32.length,24000);buf.getChannelData(0).set(f32);
-    audioQueue.push(buf);if(!isPlaying)playNext();
-}
-function playNext(){
-    if(!audioQueue.length){isPlaying=false;currentSource=null;return}
-    isPlaying=true;const buf=audioQueue.shift(),s=playbackContext.createBufferSource();
-    currentSource=s;s.buffer=buf;s.connect(playbackContext.destination);s.onended=playNext;s.start();
-}
-
-function handleFnCallUI(name,args){
-    if(name==='update_state'){
-        if(args.name)document.getElementById('ciName').textContent=args.name+(args.surname?' '+args.surname:'');
-        if(args.selected_package_id)document.getElementById('ciPackage').textContent=args.selected_package_id;
-        if(args.selected_team)document.getElementById('ciTeam').textContent=args.selected_team;
-        if(args.intent)document.getElementById('ciInterest').textContent=({sales:'Spor/Mac Paketi',internet_sales:'Internet Paketi'})[args.intent]||args.intent;
+    if (type === 'tts_start') {
+        isSpeaking = true;
+        voiceOrb.classList.add('speaking');
+        // Tell worklet AI is speaking (raises echo threshold 8x)
+        if (workletNode) workletNode.port.postMessage({ type: 'aiState', speaking: true });
+        return;
     }
+
+    if (type === 'tts_end') {
+        if (unmutePending) clearTimeout(unmutePending);
+        unmutePending = setTimeout(() => {
+            isSpeaking = false;
+            voiceOrb.classList.remove('speaking');
+            if (workletNode) workletNode.port.postMessage({ type: 'aiState', speaking: false });
+            unmutePending = null;
+        }, 200);
+        return;
+    }
+
+    if (type === 'interrupted') {
+        // Gemini detected user barge-in: duck volume, then flush after fade
+        duckVolume();
+        isSpeaking = false;
+        voiceOrb.classList.remove('speaking');
+        if (workletNode) workletNode.port.postMessage({ type: 'aiState', speaking: false });
+        if (unmutePending) { clearTimeout(unmutePending); unmutePending = null; }
+        // Flush remaining audio after duck ramp completes
+        setTimeout(() => {
+            clearPlayback();
+        }, DUCK_RAMP_MS + 50);
+        return;
+    }
+
+    if (type === 'clear_audio') {
+        duckVolume();
+        setTimeout(() => {
+            clearPlayback();
+            isSpeaking = false;
+            voiceOrb.classList.remove('speaking');
+        }, DUCK_RAMP_MS);
+        if (unmutePending) { clearTimeout(unmutePending); unmutePending = null; }
+        return;
+    }
+
+    if (type === 'transcript_user') {
+        if (data.text) addMessage(data.text, 'user');
+        return;
+    }
+
+    if (type === 'transcript_ai') {
+        userSpeechEndTime = performance.now();
+        waitingForAIResponse = true;
+        if (data.text) addMessage(data.text, 'ai');
+        return;
+    }
+
+    if (type === 'state_change') {
+        if (data.state) {
+            currentState.textContent = data.state;
+            updateCustomerState(data.state);
+        }
+        return;
+    }
+
+    if (type === 'function_call') {
+        // Sag panel guncelle
+        if (data.name === 'update_state' && data.args) {
+            const a = data.args;
+            if (a.name) document.getElementById('ciName').textContent = a.name + (a.surname ? ' ' + a.surname : '');
+            if (a.intent) document.getElementById('ciInterest').textContent =
+                ({ sales: 'Spor/Mac Paketi', internet_sales: 'Internet Paketi' })[a.intent] || a.intent;
+            if (a.selected_package_id) document.getElementById('ciPackage').textContent = a.selected_package_id;
+            if (a.selected_team) document.getElementById('ciTeam').textContent = a.selected_team;
+        }
+        // Transcript'e fonksiyon cagrisini goster
+        const fnLabels = {
+            'list_packages': 'Paketler listeleniyor...',
+            'get_package': 'Paket detayı getiriliyor...',
+            'select_package': 'Paket seçildi',
+            'validate_tckn': 'TC Kimlik doğrulanıyor...',
+            'save_customer': 'Müşteri kaydediliyor...',
+            'create_application': 'Başvuru oluşturuluyor...',
+            'update_state': null
+        };
+        const label = fnLabels[data.name];
+        if (label) {
+            const argsStr = data.args ? Object.entries(data.args).filter(([k,v]) => v).map(([k,v]) => `${k}: ${v}`).join(', ') : '';
+            addMessage(`⚙️ ${label}${argsStr ? ' (' + argsStr + ')' : ''}`, 'function');
+        }
+        return;
+    }
+
+    if (type === 'error') {
+        addMessage('Hata: ' + (data.message || 'Bilinmeyen'), 'system');
+        return;
+    }
+
+    if (type === 'call_ended') {
+        addMessage('Görüşme sonlandı: ' + (data.reason || ''), 'system');
+        stopCall();
+        return;
+    }
+
+    console.log('Server event:', type, data);
 }
-function updateCustomerState(state){
-    const m={GREET:'Karsilama',INTENT:'Niyet Belirleme',PACKAGE_DISCOVERY:'Paket Kesfi',INTERNET_PACKAGE_DISCOVERY:'Internet Kesfi',PACKAGE_RECOMMEND:'Paket Onerisi',CONFIRM_CHOICE:'Secim Onay',COLLECT_IDENTITY:'Kimlik Bilgileri',COLLECT_ADDRESS:'Adres Bilgileri',COLLECT_ADDRESS_IF_NEEDED:'Adres Kontrolu',VERIFY_SUMMARY:'Bilgi Dogrulama',CREATE_LINK:'Basvuru Olusturuluyor',GUIDE_SMS:'SMS Yonlendirme',CLOSE_SUCCESS:'Basarili Kapatis',CLOSE_FAIL:'Basarisiz Kapatis'};
-    document.getElementById('ciState').textContent=m[state]||state;
+
+// ═══ VOLUME DUCKING & PLAYBACK ═══
+const DUCK_VOLUME = 0.12;
+const NORMAL_VOLUME = 1.0;
+const DUCK_RAMP_MS = 100;
+const UNDUCK_RAMP_MS = 200;
+let gainNode = null;
+let isDucked = false;
+
+function duckVolume() {
+    if (!gainNode) { console.log('🔇 duck skipped: no gainNode'); return; }
+    if (isDucked) return;
+    isDucked = true;
+    console.log('🔇 DUCKING volume to', DUCK_VOLUME);
+    const now = playbackContext.currentTime;
+    gainNode.gain.cancelScheduledValues(now);
+    gainNode.gain.setValueAtTime(gainNode.gain.value, now);
+    gainNode.gain.exponentialRampToValueAtTime(Math.max(DUCK_VOLUME, 0.01), now + DUCK_RAMP_MS / 1000);
 }
 
-// Real-time AI Analysis
-function startAnalysisLoop(){
-    analysisInterval=setInterval(()=>{
-        if(conversationLog.length>lastAnalysisCount&&conversationLog.length>=2)triggerAnalysis(false);
-    },12000);
+function unduckVolume() {
+    if (!gainNode || !isDucked) return;
+    isDucked = false;
+    console.log('🔊 UNDUCK volume to', NORMAL_VOLUME);
+    const now = playbackContext.currentTime;
+    gainNode.gain.cancelScheduledValues(now);
+    gainNode.gain.setValueAtTime(gainNode.gain.value, now);
+    gainNode.gain.exponentialRampToValueAtTime(NORMAL_VOLUME, now + UNDUCK_RAMP_MS / 1000);
 }
 
-async function triggerAnalysis(isFinal){
-    lastAnalysisCount=conversationLog.length;
-    try{
-        const r=await fetch('/api/live-analysis',{method:'POST',headers:{'Content-Type':'application/json'},
-            body:JSON.stringify({messages:conversationLog.slice(-20),state:currentState.textContent,
-                customer_name:document.getElementById('ciName').textContent!=='-'?document.getElementById('ciName').textContent:null,
-                interest:document.getElementById('ciInterest').textContent!=='-'?document.getElementById('ciInterest').textContent:null,
-                package_id:document.getElementById('ciPackage').textContent!=='-'?document.getElementById('ciPackage').textContent:null,
-                is_final:isFinal})});
-        if(r.ok)updateAnalysisUI(await r.json());
-    }catch(e){console.error('Analysis error:',e)}
+function playAudioGapless(b64) {
+    if (!playbackContext) return;
+    const bin = atob(b64), bytes = new Uint8Array(bin.length);
+    for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+    const alignedLen = bytes.length & ~1;
+    if (alignedLen < 2) return;
+    const pcm = new Int16Array(bytes.buffer, 0, alignedLen / 2), f32 = new Float32Array(pcm.length);
+    for (let i = 0; i < pcm.length; i++) f32[i] = pcm[i] / 32768.0;
+    const buf = playbackContext.createBuffer(1, f32.length, PLAYBACK_RATE);
+    buf.getChannelData(0).set(f32);
+
+    const now = playbackContext.currentTime;
+    // Drop frames if too far behind (>100ms)
+    if (nextPlayTime < now - 0.1) nextPlayTime = now;
+
+    if (!gainNode) {
+        gainNode = playbackContext.createGain();
+        gainNode.gain.value = NORMAL_VOLUME;
+        gainNode.connect(playbackContext.destination);
+    }
+
+    const s = playbackContext.createBufferSource();
+    s.buffer = buf;
+    s.connect(gainNode);
+    s.start(nextPlayTime);
+
+    const startAt = nextPlayTime;
+    scheduledSources.push({ source: s, startAt, duration: buf.duration });
+    nextPlayTime += buf.duration;
+
+    scheduledSources = scheduledSources.filter(entry => entry.startAt + entry.duration > now);
 }
 
-function updateAnalysisUI(data){
-    const score=data.purchase_intent||0,level=score>=70?'high':score>=40?'medium':'low';
-    document.getElementById('intentFill').style.width=score+'%';
-    document.getElementById('intentFill').className='intent-fill '+level;
-    const iv=document.getElementById('intentVal');iv.className='intent-val '+level;
-    iv.innerHTML=score+'<span class="pct">%</span>';
-    document.getElementById('intentDesc').textContent=data.intent_reason||'';
+function clearPlayback() {
+    for (const s of scheduledSources) {
+        try { s.source.stop(); } catch (e) {}
+    }
+    scheduledSources = [];
+    if (playbackContext) nextPlayTime = playbackContext.currentTime;
+    if (gainNode) {
+        gainNode.gain.cancelScheduledValues(playbackContext.currentTime);
+        gainNode.gain.value = NORMAL_VOLUME;
+    }
+    isDucked = false;
+}
 
-    const moods={positive:{i:'bi-emoji-smile',t:'Pozitif'},neutral:{i:'bi-emoji-neutral',t:'Notr'},negative:{i:'bi-emoji-frown',t:'Negatif'},interested:{i:'bi-emoji-heart-eyes',t:'Ilgili'},hesitant:{i:'bi-emoji-expressionless',t:'Kararsiz'}};
-    const m=moods[data.mood]||moods.neutral;
-    document.getElementById('moodIcon').className='bi '+m.i;
-    document.getElementById('moodText').innerHTML='<strong>'+m.t+'</strong> — '+(data.mood_detail||'Analiz devam ediyor');
+function updateCustomerState(state) {
+    const m = {
+        GREET: 'Karşılama', INTENT: 'Niyet Belirleme', PACKAGE_DISCOVERY: 'Paket Keşfi',
+        INTERNET_PACKAGE_DISCOVERY: 'İnternet Keşfi', PACKAGE_RECOMMEND: 'Paket Önerisi',
+        CONFIRM_CHOICE: 'Seçim Onay', COLLECT_IDENTITY: 'Kimlik Bilgileri',
+        COLLECT_ADDRESS: 'Adres Bilgileri', COLLECT_ADDRESS_IF_NEEDED: 'Adres Kontrolü',
+        VERIFY_SUMMARY: 'Bilgi Doğrulama', CREATE_LINK: 'Başvuru Oluşturuluyor',
+        GUIDE_SMS: 'SMS Yönlendirme', CLOSE_SUCCESS: 'Başarılı Kapanış', CLOSE_FAIL: 'Başarısız Kapanış'
+    };
+    document.getElementById('ciState').textContent = m[state] || state;
+}
 
-    const sl=document.getElementById('signalsList');sl.innerHTML='';
-    (data.signals||[]).forEach(s=>{
-        const tc=s.type==='positive'?'positive':s.type==='objection'?'objection':'info';
-        const ic=s.type==='positive'?'bi-check-circle':s.type==='objection'?'bi-exclamation-triangle':'bi-info-circle';
-        sl.innerHTML+='<div class="icard"><div class="irow"><div class="iicon '+tc+'"><i class="bi '+ic+'"></i></div><div class="itext">'+s.text+'</div></div></div>';
+function startAnalysisLoop() {
+    analysisInterval = setInterval(() => {
+        if (conversationLog.length > lastAnalysisCount && conversationLog.length >= 2) triggerAnalysis(false);
+    }, 12000);
+}
+
+async function triggerAnalysis(isFinal) {
+    lastAnalysisCount = conversationLog.length;
+    try {
+        const r = await fetch('/api/live-analysis', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                messages: conversationLog.slice(-20),
+                state: currentState.textContent,
+                customer_name: document.getElementById('ciName').textContent !== '-' ? document.getElementById('ciName').textContent : null,
+                interest: document.getElementById('ciInterest').textContent !== '-' ? document.getElementById('ciInterest').textContent : null,
+                package_id: document.getElementById('ciPackage').textContent !== '-' ? document.getElementById('ciPackage').textContent : null,
+                is_final: isFinal
+            })
+        });
+        if (r.ok) updateAnalysisUI(await r.json());
+    } catch (e) { console.error('Analysis error:', e); }
+}
+
+function updateAnalysisUI(data) {
+    const score = data.purchase_intent || 0, level = score >= 70 ? 'high' : score >= 40 ? 'medium' : 'low';
+    document.getElementById('intentFill').style.width = score + '%';
+    document.getElementById('intentFill').className = 'intent-fill ' + level;
+    const iv = document.getElementById('intentVal');
+    iv.className = 'intent-val ' + level;
+    iv.innerHTML = score + '<span class="pct">%</span>';
+    document.getElementById('intentDesc').textContent = data.intent_reason || '';
+
+    const moods = {
+        positive: { i: 'bi-emoji-smile', t: 'Pozitif' },
+        neutral: { i: 'bi-emoji-neutral', t: 'Nötr' },
+        negative: { i: 'bi-emoji-frown', t: 'Negatif' },
+        interested: { i: 'bi-emoji-heart-eyes', t: 'İlgili' },
+        hesitant: { i: 'bi-emoji-expressionless', t: 'Kararsiz' }
+    };
+    const m = moods[data.mood] || moods.neutral;
+    document.getElementById('moodIcon').className = 'bi ' + m.i;
+    document.getElementById('moodText').innerHTML = '<strong>' + m.t + '</strong> -- ' + (data.mood_detail || 'Analiz devam ediyor');
+
+    const sl = document.getElementById('signalsList');
+    sl.innerHTML = '';
+    (data.signals || []).forEach(s => {
+        const tc = s.type === 'positive' ? 'positive' : s.type === 'objection' ? 'objection' : 'info';
+        const ic = s.type === 'positive' ? 'bi-check-circle' : s.type === 'objection' ? 'bi-exclamation-triangle' : 'bi-info-circle';
+        sl.innerHTML += '<div class="icard"><div class="irow"><div class="iicon ' + tc + '"><i class="bi ' + ic + '"></i></div><div class="itext">' + s.text + '</div></div></div>';
     });
 
-    const kt=document.getElementById('keywordTags');kt.innerHTML='';
-    (data.keywords||[]).forEach(k=>{kt.innerHTML+='<span class="tag '+(k.sentiment==='positive'?'positive':k.sentiment==='negative'?'negative':'neutral')+'">'+k.word+'</span>'});
+    const kt = document.getElementById('keywordTags');
+    kt.innerHTML = '';
+    (data.keywords || []).forEach(k => {
+        kt.innerHTML += '<span class="tag ' + (k.sentiment === 'positive' ? 'positive' : k.sentiment === 'negative' ? 'negative' : 'neutral') + '">' + k.word + '</span>';
+    });
 
-    if(data.summary)document.getElementById('aiSumText').textContent=data.summary;
+    if (data.summary) document.getElementById('aiSumText').textContent = data.summary;
 }
 </script>
 </body>

@@ -4,189 +4,405 @@
 {% block title %}Paketler - Digiturk CRM{% endblock %}
 {% block page_title %}Paketler{% endblock %}
 
+{% block extra_head %}
+<style>
+    .package-form-container {
+        max-height: 0;
+        overflow: hidden;
+        transition: max-height 0.5s ease, opacity 0.3s ease;
+        opacity: 0;
+    }
+    .package-form-container.open {
+        max-height: 800px;
+        opacity: 1;
+    }
+    .category-radio {
+        display: none;
+    }
+    .category-label {
+        display: inline-block;
+        padding: 8px 16px;
+        border-radius: 8px;
+        border: 1px solid var(--border-color);
+        cursor: pointer;
+        font-size: 0.85rem;
+        font-weight: 500;
+        color: var(--text-secondary);
+        transition: all 0.2s ease;
+        background: #fff;
+    }
+    .category-label:hover {
+        border-color: var(--accent-blue);
+        color: var(--accent-blue);
+    }
+    .category-radio:checked + .category-label {
+        background: linear-gradient(135deg, var(--accent-blue), var(--accent-purple));
+        color: #fff;
+        border-color: transparent;
+        box-shadow: 0 2px 8px rgba(59,130,246,0.25);
+    }
+    .delivery-toggle {
+        position: relative;
+        width: 56px;
+        height: 28px;
+    }
+    .delivery-toggle input {
+        opacity: 0;
+        width: 0;
+        height: 0;
+    }
+    .delivery-toggle .slider {
+        position: absolute;
+        cursor: pointer;
+        top: 0; left: 0; right: 0; bottom: 0;
+        background-color: #e2e8f0;
+        transition: 0.3s;
+        border-radius: 28px;
+    }
+    .delivery-toggle .slider:before {
+        position: absolute;
+        content: "";
+        height: 22px;
+        width: 22px;
+        left: 3px;
+        bottom: 3px;
+        background-color: white;
+        transition: 0.3s;
+        border-radius: 50%;
+    }
+    .delivery-toggle input:checked + .slider {
+        background: var(--accent-blue);
+    }
+    .delivery-toggle input:checked + .slider:before {
+        transform: translateX(28px);
+    }
+    .team-btn {
+        display: inline-block;
+        padding: 6px 14px;
+        border-radius: 8px;
+        border: 1px solid var(--border-color);
+        cursor: pointer;
+        font-size: 0.8rem;
+        font-weight: 500;
+        color: var(--text-secondary);
+        transition: all 0.2s ease;
+        background: #fff;
+    }
+    .team-btn:hover {
+        border-color: var(--accent-purple);
+        color: var(--accent-purple);
+    }
+    .team-check:checked + .team-btn {
+        background: rgba(139,92,246,0.1);
+        color: #8b5cf6;
+        border-color: rgba(139,92,246,0.3);
+    }
+    .team-check { display: none; }
+    .price-input-group {
+        position: relative;
+    }
+    .price-input-group .suffix {
+        position: absolute;
+        right: 12px;
+        top: 50%;
+        transform: translateY(-50%);
+        font-size: 0.8rem;
+        color: var(--text-muted);
+        pointer-events: none;
+    }
+    .price-input-group input {
+        padding-right: 40px;
+    }
+    .loading-spinner {
+        display: inline-block;
+        width: 16px;
+        height: 16px;
+        border: 2px solid rgba(255,255,255,0.3);
+        border-radius: 50%;
+        border-top-color: #fff;
+        animation: spin 0.6s linear infinite;
+    }
+    @keyframes spin {
+        to { transform: rotate(360deg); }
+    }
+</style>
+{% endblock %}
+
 {% block content %}
 <div class="d-flex justify-content-between align-items-center mb-4">
-    <div></div>
-    <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#addPackageModal">
-        <i class="bi bi-plus-lg me-1"></i>Yeni Paket Ekle
+    <div>
+        <p class="text-muted mb-0" style="font-size:0.85rem;">{{ packages|length }} paket kayıtlı</p>
+    </div>
+    <button class="btn btn-primary" onclick="toggleForm()">
+        <i class="bi bi-plus-lg me-2"></i>Yeni Paket Ekle
     </button>
 </div>
 
-{% set categories = {
-    'kampanyali_paketler': {'name': 'Kampanyalı Paketler', 'icon': 'bi-lightning-charge-fill', 'color': 'var(--accent-orange)'},
-    'kutulu_paketler': {'name': 'Kutulu Paketler', 'icon': 'bi-box-fill', 'color': 'var(--accent-purple)'},
-    'internet_paketleri': {'name': 'İnternet Paketleri', 'icon': 'bi-wifi', 'color': 'var(--accent-cyan)'}
-} %}
+<!-- Slide-down Add Package Form -->
+<div class="package-form-container mb-4" id="addPackageForm">
+    <div class="card">
+        <div class="card-header d-flex justify-content-between align-items-center">
+            <span><i class="bi bi-box-seam-fill me-2" style="color:var(--accent-purple)"></i>Yeni Paket Ekle</span>
+            <button class="btn btn-sm btn-glass" onclick="toggleForm()"><i class="bi bi-x-lg"></i></button>
+        </div>
+        <div class="card-body">
+            <form hx-post="/admin/packages/add-htmx"
+                  hx-target="#package-grid"
+                  hx-swap="afterbegin"
+                  hx-on::after-request="if(event.detail.successful) this.reset(); toggleForm();">
+                <div class="row g-3">
+                    <div class="col-md-6">
+                        <label class="form-label">Paket ID</label>
+                        <input type="text" name="package_id" class="form-control" placeholder="or: SUPER_SPORT" required>
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label">Paket Adı</label>
+                        <input type="text" name="name" class="form-control" placeholder="or: Super Spor Paketi" required>
+                    </div>
 
-{% for cat_key, cat_info in categories.items() %}
-{% set cat_packages = packages | selectattr('category', 'equalto', cat_key) | list %}
-{% if cat_packages %}
-<div class="d-flex align-items-center gap-2 mb-3 {% if not loop.first %}mt-5{% endif %}">
-    <div style="width:36px;height:36px;border-radius:10px;background:#f8fafc;display:flex;align-items:center;justify-content:center">
-        <i class="bi {{ cat_info.icon }}" style="color:{{ cat_info.color }}"></i>
-    </div>
-    <h5 class="mb-0" style="font-weight:700">{{ cat_info.name }}</h5>
-    <span class="badge-status" style="background:#f8fafc;color:var(--text-muted);border:1px solid var(--border-color)">{{ cat_packages | length }} paket</span>
-</div>
-<div class="row g-4 mb-4">
-    {% for pkg in cat_packages %}
-    <div class="col-xl-4 col-md-6">
-        <div class="card h-100 {% if not pkg.is_active %}opacity-50{% endif %}">
-            <div class="card-header d-flex justify-content-between align-items-center">
-                <strong style="font-size:0.95rem">{{ pkg.name }}</strong>
-                {% if pkg.is_active %}
-                <span class="badge-status badge-status-active">Aktif</span>
-                {% else %}
-                <span class="badge-status badge-status-expired">Pasif</span>
-                {% endif %}
-            </div>
-            <div class="card-body">
-                <div class="mb-2"><small class="text-muted">ID: <code style="color:var(--accent-blue)">{{ pkg.package_id }}</code></small></div>
+                    <!-- Category as styled radio buttons -->
+                    <div class="col-12">
+                        <label class="form-label">Kategori</label>
+                        <div class="d-flex gap-2 flex-wrap">
+                            <input type="radio" name="category" value="kampanyali_paketler" id="cat_kamp" class="category-radio" checked>
+                            <label for="cat_kamp" class="category-label"><i class="bi bi-tag-fill me-1"></i>Kampanyalı</label>
 
-                <div class="d-flex gap-2 mb-3">
-                    {% if pkg.delivery == 'kutusuz' %}
-                    <span class="badge-status" style="background:#ecfeff;color:#0891b2;border:1px solid #a5f3fc">Kutusuz</span>
-                    {% else %}
-                    <span class="badge-status" style="background:#f5f3ff;color:#7c3aed;border:1px solid #ddd6fe">Kutulu</span>
-                    {% endif %}
-                    <span class="badge-status" style="background:#f8fafc;color:var(--text-secondary);border:1px solid #e2e8f0">{{ pkg.platform or '-' }}</span>
-                </div>
+                            <input type="radio" name="category" value="kutulu_paketler" id="cat_kutu" class="category-radio">
+                            <label for="cat_kutu" class="category-label"><i class="bi bi-box-seam me-1"></i>Kutulu</label>
 
-                {% if pkg.team_required %}
-                <div class="mb-3 p-2" style="background:#fffbeb;border:1px solid #fde68a;border-radius:8px">
-                    <small style="color:#b45309"><i class="bi bi-trophy me-1"></i>Takım seçimi gerekli</small>
-                    <div class="mt-1 d-flex gap-1 flex-wrap">
-                        {% for team in pkg.teams_supported %}
-                        <span class="badge-status" style="background:#f8fafc;color:var(--text-secondary);border:1px solid #e2e8f0;font-size:0.65rem">{{ team }}</span>
-                        {% endfor %}
+                            <input type="radio" name="category" value="internet_paketleri" id="cat_net" class="category-radio">
+                            <label for="cat_net" class="category-label"><i class="bi bi-wifi me-1"></i>İnternet</label>
+                        </div>
+                    </div>
+
+                    <!-- Delivery as toggle switch -->
+                    <div class="col-md-6">
+                        <label class="form-label">Teslimat</label>
+                        <div class="d-flex align-items-center gap-3">
+                            <span style="font-size:0.85rem;color:var(--text-secondary)">Kutusuz</span>
+                            <label class="delivery-toggle">
+                                <input type="checkbox" id="deliveryToggle" onchange="document.getElementById('deliveryHidden').value = this.checked ? 'kutulu' : 'kutusuz'">
+                                <span class="slider"></span>
+                            </label>
+                            <span style="font-size:0.85rem;color:var(--text-secondary)">Kutulu</span>
+                            <input type="hidden" name="delivery" id="deliveryHidden" value="kutusuz">
+                        </div>
+                    </div>
+
+                    <div class="col-md-6">
+                        <label class="form-label">Platform</label>
+                        <input type="text" name="platform" class="form-control" placeholder="or: beIN CONNECT">
+                    </div>
+
+                    <!-- Team checkboxes as buttons -->
+                    <div class="col-12">
+                        <label class="form-label">Desteklenen Takımlar</label>
+                        <div class="d-flex gap-2 flex-wrap">
+                            <input type="checkbox" class="team-check" id="team_gs" onchange="updateTeams()">
+                            <label for="team_gs" class="team-btn"><i class="bi bi-people-fill me-1"></i>Galatasaray</label>
+
+                            <input type="checkbox" class="team-check" id="team_fb" onchange="updateTeams()">
+                            <label for="team_fb" class="team-btn"><i class="bi bi-people-fill me-1"></i>Fenerbahce</label>
+
+                            <input type="checkbox" class="team-check" id="team_bjk" onchange="updateTeams()">
+                            <label for="team_bjk" class="team-btn"><i class="bi bi-people-fill me-1"></i>Besiktas</label>
+
+                            <input type="checkbox" class="team-check" id="team_ts" onchange="updateTeams()">
+                            <label for="team_ts" class="team-btn"><i class="bi bi-people-fill me-1"></i>Trabzonspor</label>
+                        </div>
+                        <input type="hidden" name="teams_supported" id="teamsHidden" value="">
+                        <input type="hidden" name="team_required" id="teamRequiredHidden" value="">
+                    </div>
+
+                    <!-- Ek Özellikler -->
+                    <div class="col-12">
+                        <label class="form-label">Ek Özellikler</label>
+                        <input type="text" name="features" class="form-control" placeholder="örn: Sinema Paketi, beIN CONNECT, Dizi Paketi"
+                               style="border-style:dashed;">
+                        <small class="text-muted" style="font-size:0.75rem;">Virgülle ayırarak yazın</small>
+                    </div>
+
+                    <div class="col-12"><hr></div>
+                    <div class="col-12"><strong style="font-size:0.9rem;">Fiyatlandırma</strong></div>
+
+                    <div class="col-md-4">
+                        <label class="form-label">KK 12 Taksit</label>
+                        <div class="price-input-group">
+                            <input type="number" step="0.01" name="price_cc" class="form-control" placeholder="0.00">
+                            <span class="suffix">TL</span>
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <label class="form-label">Faturalı</label>
+                        <div class="price-input-group">
+                            <input type="number" step="0.01" name="price_invoiced" class="form-control" placeholder="0.00">
+                            <span class="suffix">TL</span>
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <label class="form-label">Aylık</label>
+                        <div class="price-input-group">
+                            <input type="number" step="0.01" name="price_monthly" class="form-control" placeholder="0.00">
+                            <span class="suffix">TL</span>
+                        </div>
+                    </div>
+
+                    <div class="col-12 d-flex justify-content-end gap-2 mt-3">
+                        <button type="button" class="btn btn-glass" onclick="toggleForm()">İptal</button>
+                        <button type="submit" class="btn btn-primary">
+                            <span class="htmx-indicator"><span class="loading-spinner me-2"></span></span>
+                            <i class="bi bi-plus-lg me-1"></i>Paket Ekle
+                        </button>
                     </div>
                 </div>
-                {% endif %}
-
-                <div style="border-top:1px solid var(--border-color);padding-top:12px">
-                    <small class="text-muted text-uppercase" style="font-weight:600;letter-spacing:0.5px">Fiyatlandırma</small>
-                    {% for price in pkg.pricing %}
-                    <div class="d-flex justify-content-between align-items-center mt-2">
-                        <span class="text-muted" style="font-size:0.8rem">
-                            {% if price.payment_type == 'credit_card_installment_12' %}KK 12 Taksit
-                            {% elif price.payment_type == 'invoiced' %}Faturalı
-                            {% elif price.payment_type == 'monthly' %}Aylık
-                            {% else %}{{ price.payment_type }}{% endif %}
-                        </span>
-                        <strong style="color:var(--accent-green)">{{ price.amount_monthly }} {{ price.currency }}/ay</strong>
-                    </div>
-                    {% endfor %}
-                </div>
-
-                {% if pkg.notes %}
-                <div style="border-top:1px solid var(--border-color);padding-top:12px;margin-top:12px">
-                    {% for note in pkg.notes %}
-                    <div class="text-muted" style="font-size:0.78rem"><i class="bi bi-info-circle me-1"></i>{{ note }}</div>
-                    {% endfor %}
-                </div>
-                {% endif %}
-            </div>
-            <div class="card-footer" style="background:transparent;border-top:1px solid var(--border-color);padding:12px 20px">
-                <form method="POST" action="/admin/packages/{{ pkg.id }}/toggle" class="d-inline">
-                    {% if pkg.is_active %}
-                    <button type="submit" class="btn btn-sm" style="background:#fef2f2;color:#dc2626;border:1px solid #fecaca">
-                        <i class="bi bi-pause-circle me-1"></i>Pasif Yap
-                    </button>
-                    {% else %}
-                    <button type="submit" class="btn btn-sm" style="background:#ecfdf5;color:#059669;border:1px solid #a7f3d0">
-                        <i class="bi bi-play-circle me-1"></i>Aktif Yap
-                    </button>
-                    {% endif %}
-                </form>
-            </div>
+            </form>
         </div>
     </div>
+</div>
+
+<!-- Package Grid -->
+<div class="row g-3" id="package-grid">
+    {% for pkg in packages %}
+    {% include "partials/package_card.html" %}
     {% endfor %}
 </div>
-{% endif %}
-{% endfor %}
 
 {% if not packages %}
-<div class="card">
-    <div class="card-body text-center py-5">
-        <i class="bi bi-box-seam fs-1 d-block mb-3 opacity-25"></i>
-        <p class="text-muted">Henüz paket eklenmemiş.</p>
-        <code>python db/seed.py</code> ile başlangıç paketlerini yükleyebilirsiniz.
-    </div>
+<div class="text-center py-5">
+    <i class="bi bi-box-seam" style="font-size:3rem;color:var(--text-muted);"></i>
+    <p class="text-muted mt-3">Henüz paket eklenmemiş.</p>
+    <p class="text-muted"><code>python db/seed.py</code> ile başlangıç paketlerini yükleyebilirsiniz.</p>
 </div>
 {% endif %}
 
-<!-- Paket Ekleme Modal -->
-<div class="modal fade" id="addPackageModal" tabindex="-1">
+<!-- Düzenleme Modal -->
+<div class="modal fade" id="editPackageModal" tabindex="-1">
     <div class="modal-dialog modal-lg">
         <div class="modal-content">
             <div class="modal-header">
-                <h5 class="modal-title"><i class="bi bi-box-seam-fill me-2" style="color:var(--accent-purple)"></i>Yeni Paket Ekle</h5>
+                <h5 class="modal-title"><i class="bi bi-pencil-square me-2" style="color:var(--accent-blue)"></i>Paketi Düzenle</h5>
                 <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
             </div>
-            <form method="POST" action="/admin/packages/add">
+            <form hx-post="" id="editForm"
+                  hx-swap="outerHTML"
+                  hx-on::after-request="if(event.detail.successful) bootstrap.Modal.getInstance(document.getElementById('editPackageModal')).hide();">
                 <div class="modal-body">
+                    <div id="editResult"></div>
                     <div class="row g-3">
                         <div class="col-md-6">
                             <label class="form-label">Paket ID</label>
-                            <input type="text" name="package_id" class="form-control" placeholder="ör: SUPER_SPORT" required>
+                            <input type="text" name="package_id" id="editPackageId" class="form-control" readonly style="background:#f8fafc;">
                         </div>
                         <div class="col-md-6">
                             <label class="form-label">Paket Adı</label>
-                            <input type="text" name="name" class="form-control" placeholder="ör: Süper Spor Paketi" required>
+                            <input type="text" name="name" id="editName" class="form-control" required>
                         </div>
                         <div class="col-md-4">
                             <label class="form-label">Kategori</label>
-                            <select name="category" class="form-select" required>
-                                <option value="kampanyali_paketler">Kampanyalı Paketler</option>
-                                <option value="kutulu_paketler">Kutulu Paketler</option>
-                                <option value="internet_paketleri">İnternet Paketleri</option>
+                            <select name="category" id="editCategory" class="form-select" required>
+                                <option value="kampanyali_paketler">Kampanyalı</option>
+                                <option value="kutulu_paketler">Kutulu</option>
+                                <option value="internet_paketleri">İnternet</option>
                             </select>
                         </div>
                         <div class="col-md-4">
                             <label class="form-label">Teslimat</label>
-                            <select name="delivery" class="form-select" required>
+                            <select name="delivery" id="editDelivery" class="form-select" required>
                                 <option value="kutusuz">Kutusuz</option>
                                 <option value="kutulu">Kutulu</option>
                             </select>
                         </div>
                         <div class="col-md-4">
                             <label class="form-label">Platform</label>
-                            <input type="text" name="platform" class="form-control" placeholder="ör: beIN CONNECT">
-                        </div>
-                        <div class="col-md-6">
-                            <div class="form-check mt-2">
-                                <input class="form-check-input" type="checkbox" name="team_required" id="teamRequiredPkg" value="1">
-                                <label class="form-check-label" for="teamRequiredPkg">Takım seçimi gerekli</label>
-                            </div>
+                            <input type="text" name="platform" id="editPlatform" class="form-control">
                         </div>
                         <div class="col-md-6">
                             <label class="form-label">Desteklenen Takımlar</label>
-                            <input type="text" name="teams_supported" class="form-control" placeholder="Galatasaray,Fenerbahçe,Beşiktaş,Trabzonspor">
+                            <input type="text" name="teams_supported" id="editTeams" class="form-control" placeholder="Galatasaray,Fenerbahce,...">
+                            <small class="text-muted">Virgülle ayırın</small>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="form-check mt-4">
+                                <input class="form-check-input" type="checkbox" name="team_required" id="editTeamRequired" value="1">
+                                <label class="form-check-label" for="editTeamRequired">Takım seçimi gerekli</label>
+                            </div>
+                        </div>
+                        <div class="col-12">
+                            <label class="form-label">Ek Özellikler</label>
+                            <input type="text" name="features" id="editFeatures" class="form-control" placeholder="Sinema Paketi, beIN CONNECT..." style="border-style:dashed;">
                             <small class="text-muted">Virgülle ayırın</small>
                         </div>
                         <div class="col-12"><hr></div>
                         <div class="col-12"><strong>Fiyatlandırma</strong></div>
                         <div class="col-md-4">
                             <label class="form-label">KK 12 Taksit (TL/ay)</label>
-                            <input type="number" step="0.01" name="price_cc" class="form-control" placeholder="0.00">
+                            <input type="number" step="0.01" name="price_cc" id="editPriceCc" class="form-control">
                         </div>
                         <div class="col-md-4">
                             <label class="form-label">Faturalı (TL/ay)</label>
-                            <input type="number" step="0.01" name="price_invoiced" class="form-control" placeholder="0.00">
+                            <input type="number" step="0.01" name="price_invoiced" id="editPriceInv" class="form-control">
                         </div>
                         <div class="col-md-4">
                             <label class="form-label">Aylık (TL/ay)</label>
-                            <input type="number" step="0.01" name="price_monthly" class="form-control" placeholder="0.00">
+                            <input type="number" step="0.01" name="price_monthly" id="editPriceMon" class="form-control">
                         </div>
                     </div>
                 </div>
                 <div class="modal-footer">
                     <button type="button" class="btn btn-glass" data-bs-dismiss="modal">İptal</button>
-                    <button type="submit" class="btn btn-primary"><i class="bi bi-plus-lg me-1"></i>Paket Ekle</button>
+                    <button type="submit" class="btn btn-primary"><i class="bi bi-check-lg me-1"></i>Güncelle</button>
                 </div>
             </form>
         </div>
     </div>
 </div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+function toggleForm() {
+    const form = document.getElementById('addPackageForm');
+    form.classList.toggle('open');
+}
+
+const teamMap = {
+    'team_gs': 'Galatasaray',
+    'team_fb': 'Fenerbahce',
+    'team_bjk': 'Besiktas',
+    'team_ts': 'Trabzonspor'
+};
+
+function updateTeams() {
+    const selected = [];
+    for (const [id, name] of Object.entries(teamMap)) {
+        if (document.getElementById(id).checked) {
+            selected.push(name);
+        }
+    }
+    document.getElementById('teamsHidden').value = selected.join(',');
+    document.getElementById('teamRequiredHidden').value = selected.length > 0 ? '1' : '';
+}
+
+function openEditModal(dbId, packageId, name, category, delivery, platform, teamRequired, teams, features, priceCc, priceInv, priceMon) {
+    document.getElementById('editPackageId').value = packageId;
+    document.getElementById('editName').value = name;
+    document.getElementById('editCategory').value = category;
+    document.getElementById('editDelivery').value = delivery;
+    document.getElementById('editPlatform').value = platform;
+    document.getElementById('editTeamRequired').checked = teamRequired === '1';
+    document.getElementById('editTeams').value = teams;
+    document.getElementById('editFeatures').value = features;
+    document.getElementById('editPriceCc').value = priceCc;
+    document.getElementById('editPriceInv').value = priceInv;
+    document.getElementById('editPriceMon').value = priceMon;
+    document.getElementById('editResult').innerHTML = '';
+
+    const form = document.getElementById('editForm');
+    form.setAttribute('hx-post', '/admin/packages/' + dbId + '/update-htmx');
+    form.setAttribute('hx-target', '#package-' + dbId);
+    htmx.process(form);
+
+    new bootstrap.Modal(document.getElementById('editPackageModal')).show();
+}
+</script>
 {% endblock %}

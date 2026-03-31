@@ -5,8 +5,21 @@
 {% block page_title %}Analitik & Veri Analizi{% endblock %}
 
 {% block content %}
-<!-- KPI Kartları -->
+<!-- Period Filter Bar -->
+<div class="d-flex align-items-center gap-2 mb-4">
+    <span style="font-size:0.85rem;color:var(--text-muted);font-weight:600">Dönem:</span>
+    <div class="btn-group">
+        <a href="/admin/analytics?period=24h" class="btn btn-sm {% if period == '24h' %}btn-primary{% else %}btn-glass{% endif %}">Son 24 Saat</a>
+        <a href="/admin/analytics?period=7d" class="btn btn-sm {% if period == '7d' %}btn-primary{% else %}btn-glass{% endif %}">Son 7 Gün</a>
+        <a href="/admin/analytics?period=30d" class="btn btn-sm {% if period == '30d' %}btn-primary{% else %}btn-glass{% endif %}">Son 30 Gün</a>
+        <a href="/admin/analytics?period=90d" class="btn btn-sm {% if period == '90d' %}btn-primary{% else %}btn-glass{% endif %}">Son 90 Gün</a>
+    </div>
+    <span style="font-size:0.8rem;color:var(--text-muted);margin-left:auto"><i class="bi bi-calendar3 me-1"></i>{{ period_label }}</span>
+</div>
+
+<!-- ROW 1: KPI Cards (8 cards, 2 rows of 4) -->
 <div class="row g-4 mb-4">
+    <!-- 1. Toplam Çağrı -->
     <div class="col-xl-3 col-md-6">
         <div class="stat-card">
             <div class="stat-glow" style="background: var(--accent-blue);"></div>
@@ -18,17 +31,43 @@
             <div class="stat-change">{{ successful_calls }} başarılı &middot; {{ failed_calls }} başarısız</div>
         </div>
     </div>
+    <!-- 2. Toplam Başvuru -->
     <div class="col-xl-3 col-md-6">
         <div class="stat-card">
             <div class="stat-glow" style="background: var(--accent-green);"></div>
             <div class="stat-icon" style="background: #ecfdf5; color: var(--accent-green);">
+                <i class="bi bi-file-earmark-text-fill"></i>
+            </div>
+            <div class="stat-label">Toplam Başvuru</div>
+            <div class="stat-value">{{ total_apps }}</div>
+            <div class="stat-change">{{ period_label }}</div>
+        </div>
+    </div>
+    <!-- 3. Dönüşüm Oranı -->
+    <div class="col-xl-3 col-md-6">
+        <div class="stat-card">
+            <div class="stat-glow" style="background: var(--accent-purple);"></div>
+            <div class="stat-icon" style="background: #f5f3ff; color: var(--accent-purple);">
                 <i class="bi bi-bullseye"></i>
             </div>
             <div class="stat-label">Dönüşüm Oranı</div>
             <div class="stat-value">%{{ conversion_rate }}</div>
-            <div class="stat-change">Çağrı &rarr; Başvuru dönüşümü</div>
+            <div class="stat-change">Çağrı &rarr; Başvuru</div>
         </div>
     </div>
+    <!-- 4. Ort. Görüşme Süresi -->
+    <div class="col-xl-3 col-md-6">
+        <div class="stat-card">
+            <div class="stat-glow" style="background: var(--accent-cyan);"></div>
+            <div class="stat-icon" style="background: #ecfeff; color: var(--accent-cyan);">
+                <i class="bi bi-clock-fill"></i>
+            </div>
+            <div class="stat-label">Ort. Görüşme Süresi</div>
+            <div class="stat-value">{{ (avg_duration // 60)|int }} dk {{ (avg_duration % 60)|int }} sn</div>
+            <div class="stat-change">{{ period_label }}</div>
+        </div>
+    </div>
+    <!-- 5. En Popüler Paket -->
     <div class="col-xl-3 col-md-6">
         <div class="stat-card">
             <div class="stat-glow" style="background: var(--accent-purple);"></div>
@@ -36,10 +75,11 @@
                 <i class="bi bi-box-seam-fill"></i>
             </div>
             <div class="stat-label">En Popüler Paket</div>
-            <div class="stat-value" style="font-size:1.2rem;">{{ top_package_name or '-' }}</div>
+            <div class="stat-value" style="font-size:1.1rem;">{{ top_package_name or '-' }}</div>
             <div class="stat-change">{{ top_package_count }} başvuru</div>
         </div>
     </div>
+    <!-- 6. En Popüler Takım -->
     <div class="col-xl-3 col-md-6">
         <div class="stat-card">
             <div class="stat-glow" style="background: var(--accent-orange);"></div>
@@ -47,85 +87,153 @@
                 <i class="bi bi-trophy-fill"></i>
             </div>
             <div class="stat-label">En Popüler Takım</div>
-            <div class="stat-value" style="font-size:1.4rem;">{{ top_team or '-' }}</div>
+            <div class="stat-value" style="font-size:1.1rem;">{{ top_team or '-' }}</div>
             <div class="stat-change">{{ top_team_count }} müşteri</div>
         </div>
     </div>
-</div>
-
-<!-- Grafikler Satır 1 -->
-<div class="row g-4 mb-4">
-    <div class="col-xl-5">
-        <div class="card h-100">
-            <div class="card-header">
-                <i class="bi bi-trophy-fill me-2" style="color:var(--accent-orange)"></i>Takım Tercihleri Dağılımı
+    <!-- 7. Tekrar Aranacak -->
+    <div class="col-xl-3 col-md-6">
+        <div class="stat-card">
+            <div class="stat-glow" style="background: var(--accent-red);"></div>
+            <div class="stat-icon" style="background: #fef2f2; color: var(--accent-red);">
+                <i class="bi bi-telephone-forward-fill"></i>
             </div>
-            <div class="card-body chart-container" style="height:350px">
-                <canvas id="teamPieChart"></canvas>
+            <div class="stat-label">Tekrar Aranacak</div>
+            <div class="stat-value">{{ recontact_high + recontact_medium }}</div>
+            <div class="stat-change">{{ recontact_high }} yüksek &middot; {{ recontact_medium }} orta</div>
+        </div>
+    </div>
+    <!-- 8. Ort. Tekrar Aranma Skoru -->
+    <div class="col-xl-3 col-md-6">
+        <div class="stat-card">
+            <div class="stat-glow" style="background: var(--accent-cyan);"></div>
+            <div class="stat-icon" style="background: #ecfeff; color: var(--accent-cyan);">
+                <i class="bi bi-speedometer2"></i>
+            </div>
+            <div class="stat-label">Ort. Tekrar Aranma Skoru</div>
+            <div class="stat-value">{{ avg_recontact_score }}</div>
+            <div style="margin-top:6px;">
+                <div style="height:8px;background:#f1f5f9;border-radius:4px;overflow:hidden">
+                    <div style="height:100%;width:{{ (avg_recontact_score * 10)|int }}%;border-radius:4px;background:linear-gradient(90deg,var(--accent-cyan),var(--accent-blue))"></div>
+                </div>
             </div>
         </div>
     </div>
-    <div class="col-xl-7">
-        <div class="card h-100">
-            <div class="card-header">
-                <i class="bi bi-box-seam-fill me-2" style="color:var(--accent-purple)"></i>Paket Talep Dağılımı
-            </div>
-            <div class="card-body chart-container" style="height:350px">
-                <canvas id="packageDemandChart"></canvas>
-            </div>
-        </div>
-    </div>
 </div>
 
-<!-- Grafikler Satır 2 -->
+<!-- ROW 2: Trend Chart (full width) -->
 <div class="row g-4 mb-4">
-    <div class="col-xl-7">
-        <div class="card h-100">
+    <div class="col-12">
+        <div class="card">
             <div class="card-header">
-                <i class="bi bi-graph-up me-2" style="color:var(--accent-green)"></i>Çağrı & Başvuru Trendi (Son 30 Gün)
+                <i class="bi bi-graph-up me-2" style="color:var(--accent-green)"></i>Çağrı & Başvuru Trendi
             </div>
-            <div class="card-body chart-container" style="height:350px">
+            <div class="card-body chart-container" style="height:320px">
                 <canvas id="trendChart"></canvas>
             </div>
         </div>
     </div>
-    <div class="col-xl-5">
+</div>
+
+<!-- ROW 3: 3 Charts -->
+<div class="row g-4 mb-4">
+    <!-- Takım Tercihleri -->
+    <div class="col-xl-4">
         <div class="card h-100">
             <div class="card-header">
-                <i class="bi bi-credit-card-fill me-2" style="color:var(--accent-cyan)"></i>Ödeme Yöntemi Dağılımı
+                <i class="bi bi-trophy-fill me-2" style="color:var(--accent-orange)"></i>Takım Tercihleri
             </div>
-            <div class="card-body chart-container" style="height:350px">
-                <canvas id="paymentChart"></canvas>
+            <div class="card-body chart-container" style="height:320px">
+                <canvas id="teamPieChart"></canvas>
+            </div>
+        </div>
+    </div>
+    <!-- Paket Talep Dağılımı -->
+    <div class="col-xl-4">
+        <div class="card h-100">
+            <div class="card-header">
+                <i class="bi bi-box-seam-fill me-2" style="color:var(--accent-purple)"></i>Paket Talep Dağılımı
+            </div>
+            <div class="card-body chart-container" style="height:320px">
+                <canvas id="packageDemandChart"></canvas>
+            </div>
+        </div>
+    </div>
+    <!-- Müşteri Duygu Analizi -->
+    <div class="col-xl-4">
+        <div class="card h-100">
+            <div class="card-header">
+                <i class="bi bi-emoji-smile me-2" style="color:var(--accent-green)"></i>Müşteri Duygu Analizi
+            </div>
+            <div class="card-body chart-container" style="height:320px">
+                <canvas id="sentimentChart"></canvas>
             </div>
         </div>
     </div>
 </div>
 
-<!-- Grafikler Satır 3 -->
+<!-- ROW 4: 3 Charts -->
 <div class="row g-4 mb-4">
-    <div class="col-xl-6">
+    <!-- Ödeme Yöntemi -->
+    <div class="col-xl-4">
+        <div class="card h-100">
+            <div class="card-header">
+                <i class="bi bi-credit-card-fill me-2" style="color:var(--accent-cyan)"></i>Ödeme Yöntemi
+            </div>
+            <div class="card-body chart-container" style="height:320px">
+                <canvas id="paymentChart"></canvas>
+            </div>
+        </div>
+    </div>
+    <!-- Teslimat Tercihi -->
+    <div class="col-xl-4">
         <div class="card h-100">
             <div class="card-header">
                 <i class="bi bi-box me-2" style="color:var(--accent-pink)"></i>Teslimat Tercihi
             </div>
-            <div class="card-body chart-container" style="height:300px">
+            <div class="card-body chart-container" style="height:320px">
                 <canvas id="deliveryChart"></canvas>
+            </div>
+        </div>
+    </div>
+    <!-- Müşteri Segmentleri -->
+    <div class="col-xl-4">
+        <div class="card h-100">
+            <div class="card-header">
+                <i class="bi bi-people-fill me-2" style="color:var(--accent-blue)"></i>Müşteri Segmentleri
+            </div>
+            <div class="card-body chart-container" style="height:320px">
+                <canvas id="segmentChart"></canvas>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- ROW 5: Ayrılma Noktaları + Şehir Bazında Müşteriler -->
+<div class="row g-4 mb-4">
+    <div class="col-xl-6">
+        <div class="card h-100">
+            <div class="card-header">
+                <i class="bi bi-sign-stop me-2" style="color:var(--accent-red)"></i>Ayrılma Noktaları
+            </div>
+            <div class="card-body chart-container" style="height:320px">
+                <canvas id="funnelChart"></canvas>
             </div>
         </div>
     </div>
     <div class="col-xl-6">
         <div class="card h-100">
             <div class="card-header">
-                <i class="bi bi-geo-alt-fill me-2" style="color:var(--accent-orange)"></i>Şehir Bazında Müşteriler (İlk 10)
+                <i class="bi bi-geo-alt-fill me-2" style="color:var(--accent-orange)"></i>Şehir Bazında Müşteriler
             </div>
-            <div class="card-body chart-container" style="height:300px">
+            <div class="card-body chart-container" style="height:320px">
                 <canvas id="cityChart"></canvas>
             </div>
         </div>
     </div>
 </div>
 
-<!-- Takım Detay Tablosu -->
+<!-- ROW 6: Takım Detay Tablosu -->
 <div class="card mb-4">
     <div class="card-header">
         <i class="bi bi-table me-2" style="color:var(--accent-blue)"></i>Takım Bazında Detay Analiz
@@ -186,6 +294,27 @@
 Chart.defaults.color = '#94a3b8';
 Chart.defaults.borderColor = '#f1f5f9';
 
+// ── Trend Chart ──
+const trendData = {{ daily_trend | tojson }};
+const trendCtx = document.getElementById('trendChart').getContext('2d');
+const gradientBlue = trendCtx.createLinearGradient(0, 0, 0, 300);
+gradientBlue.addColorStop(0, 'rgba(59,130,246,0.18)');
+gradientBlue.addColorStop(1, 'rgba(59,130,246,0.01)');
+const gradientGreen = trendCtx.createLinearGradient(0, 0, 0, 300);
+gradientGreen.addColorStop(0, 'rgba(16,185,129,0.18)');
+gradientGreen.addColorStop(1, 'rgba(16,185,129,0.01)');
+new Chart(trendCtx, {
+    type: 'line',
+    data: { labels: trendData.dates, datasets: [
+        { label: 'Çağrılar', data: trendData.calls, borderColor: '#3b82f6', backgroundColor: gradientBlue, fill: true, tension: 0.4, pointRadius: 2, pointHoverRadius: 6, borderWidth: 2.5 },
+        { label: 'Başvurular', data: trendData.applications, borderColor: '#10b981', backgroundColor: gradientGreen, fill: true, tension: 0.4, pointRadius: 2, pointHoverRadius: 6, borderWidth: 2.5 }
+    ] },
+    options: { responsive: true, maintainAspectRatio: false,
+        plugins: { legend: { labels: { usePointStyle: true, padding: 20 } } },
+        scales: { y: { beginAtZero: true, grid: { color: '#f1f5f9' }, ticks: { stepSize: 1 } }, x: { grid: { display: false }, ticks: { maxRotation: 45, font: { size: 10 } } } } }
+});
+
+// ── Team Doughnut ──
 const teamData = {{ team_distribution | tojson }};
 const teamColors = { 'Galatasaray': '#FFD700', 'Fenerbahce': '#1E3A5F', 'Besiktas': '#666', 'Trabzonspor': '#8B0000' };
 new Chart(document.getElementById('teamPieChart'), {
@@ -197,9 +326,10 @@ new Chart(document.getElementById('teamPieChart'), {
             borderWidth: 2, borderColor: '#fff', hoverOffset: 12 }]
     },
     options: { responsive: true, maintainAspectRatio: false, cutout: '60%',
-        plugins: { legend: { position: 'bottom', labels: { padding: 16, usePointStyle: true, font: { size: 13, weight: 600 } } } } }
+        plugins: { legend: { position: 'bottom', labels: { padding: 16, usePointStyle: true, font: { size: 12, weight: 600 } } } } }
 });
 
+// ── Package Demand (horizontal bar) ──
 const pkgData = {{ package_demand | tojson }};
 new Chart(document.getElementById('packageDemandChart'), {
     type: 'bar',
@@ -211,18 +341,24 @@ new Chart(document.getElementById('packageDemandChart'), {
         scales: { x: { beginAtZero: true, grid: { color: '#f1f5f9' }, ticks: { stepSize: 1 } }, y: { grid: { display: false }, ticks: { font: { size: 11 } } } } }
 });
 
-const trendData = {{ daily_trend | tojson }};
-new Chart(document.getElementById('trendChart'), {
-    type: 'line',
-    data: { labels: trendData.dates, datasets: [
-        { label: 'Çağrılar', data: trendData.calls, borderColor: '#3b82f6', backgroundColor: 'rgba(59,130,246,0.08)', fill: true, tension: 0.4, pointRadius: 2, pointHoverRadius: 6, borderWidth: 2 },
-        { label: 'Başvurular', data: trendData.applications, borderColor: '#10b981', backgroundColor: 'rgba(16,185,129,0.08)', fill: true, tension: 0.4, pointRadius: 2, pointHoverRadius: 6, borderWidth: 2 }
-    ] },
-    options: { responsive: true, maintainAspectRatio: false,
-        plugins: { legend: { labels: { usePointStyle: true, padding: 20 } } },
-        scales: { y: { beginAtZero: true, grid: { color: '#f1f5f9' }, ticks: { stepSize: 1 } }, x: { grid: { display: false }, ticks: { maxRotation: 45, font: { size: 10 } } } } }
+// ── Sentiment Doughnut ──
+const sentimentRaw = {{ sentiment_distribution | tojson }};
+const sentimentColorMap = { 'positive': '#10b981', 'neutral': '#94a3b8', 'negative': '#ef4444', 'angry': '#991b1b' };
+const sentimentLabelMap = { 'positive': 'Pozitif', 'neutral': 'Nötr', 'negative': 'Negatif', 'angry': 'Kızgın' };
+const sentimentKeys = Object.keys(sentimentRaw);
+new Chart(document.getElementById('sentimentChart'), {
+    type: 'doughnut',
+    data: {
+        labels: sentimentKeys.length > 0 ? sentimentKeys.map(k => sentimentLabelMap[k] || k) : ['Veri yok'],
+        datasets: [{ data: sentimentKeys.length > 0 ? Object.values(sentimentRaw) : [1],
+            backgroundColor: sentimentKeys.length > 0 ? sentimentKeys.map(k => sentimentColorMap[k] || '#94a3b8') : ['#e2e8f0'],
+            borderWidth: 2, borderColor: '#fff', hoverOffset: 10 }]
+    },
+    options: { responsive: true, maintainAspectRatio: false, cutout: '60%',
+        plugins: { legend: { position: 'bottom', labels: { padding: 14, usePointStyle: true, font: { size: 12 } } } } }
 });
 
+// ── Payment Polar Area ──
 const payData = {{ payment_distribution | tojson }};
 const payLabels = { 'credit_card_installment_12': 'KK 12 Taksit', 'invoiced': 'Faturalı', 'monthly': 'Aylık' };
 new Chart(document.getElementById('paymentChart'), {
@@ -230,19 +366,59 @@ new Chart(document.getElementById('paymentChart'), {
     data: { labels: Object.keys(payData).map(k => payLabels[k] || k), datasets: [{ data: Object.values(payData),
         backgroundColor: ['rgba(59,130,246,0.6)','rgba(139,92,246,0.6)','rgba(6,182,212,0.6)'], borderWidth: 2, borderColor: '#fff' }] },
     options: { responsive: true, maintainAspectRatio: false,
-        plugins: { legend: { position: 'bottom', labels: { usePointStyle: true, padding: 16, font: { size: 12 } } } },
+        plugins: { legend: { position: 'bottom', labels: { usePointStyle: true, padding: 14, font: { size: 12 } } } },
         scales: { r: { grid: { color: '#f1f5f9' }, ticks: { display: false } } } }
 });
 
+// ── Delivery Doughnut ──
 const delData = {{ delivery_distribution | tojson }};
 new Chart(document.getElementById('deliveryChart'), {
     type: 'doughnut',
     data: { labels: Object.keys(delData).map(k => k === 'kutusuz' ? 'Kutusuz' : 'Kutulu'), datasets: [{ data: Object.values(delData),
         backgroundColor: ['#06b6d4','#8b5cf6'], borderWidth: 2, borderColor: '#fff', hoverOffset: 8 }] },
     options: { responsive: true, maintainAspectRatio: false, cutout: '55%',
-        plugins: { legend: { position: 'bottom', labels: { usePointStyle: true, padding: 16, font: { size: 13 } } } } }
+        plugins: { legend: { position: 'bottom', labels: { usePointStyle: true, padding: 14, font: { size: 12 } } } } }
 });
 
+// ── Customer Segments Doughnut ──
+const segRaw = {{ customer_segments | tojson }};
+const segColorMap = { 'new': '#3b82f6', 'returning': '#f59e0b', 'converted': '#10b981', 'lost': '#ef4444' };
+const segLabelMap = { 'new': 'Yeni', 'returning': 'Geri Dönen', 'converted': 'Dönüştürülen', 'lost': 'Kaybedilen' };
+const segKeys = Object.keys(segRaw);
+new Chart(document.getElementById('segmentChart'), {
+    type: 'doughnut',
+    data: {
+        labels: segKeys.length > 0 ? segKeys.map(k => segLabelMap[k] || k) : ['Veri yok'],
+        datasets: [{ data: segKeys.length > 0 ? Object.values(segRaw) : [1],
+            backgroundColor: segKeys.length > 0 ? segKeys.map(k => segColorMap[k] || '#94a3b8') : ['#e2e8f0'],
+            borderWidth: 2, borderColor: '#fff', hoverOffset: 10 }]
+    },
+    options: { responsive: true, maintainAspectRatio: false, cutout: '60%',
+        plugins: { legend: { position: 'bottom', labels: { padding: 14, usePointStyle: true, font: { size: 12 } } } } }
+});
+
+// ── Dropped Funnel (horizontal bar, gradient red→green) ──
+const funnelRaw = {{ dropped_funnel | tojson }};
+const funnelLabels = Object.keys(funnelRaw);
+const funnelValues = Object.values(funnelRaw);
+const funnelColors = funnelLabels.map((_, i) => {
+    const ratio = funnelLabels.length > 1 ? i / (funnelLabels.length - 1) : 0;
+    const r = Math.round(239 * (1 - ratio) + 16 * ratio);
+    const g = Math.round(68 * (1 - ratio) + 185 * ratio);
+    const b = Math.round(68 * (1 - ratio) + 129 * ratio);
+    return `rgb(${r},${g},${b})`;
+});
+new Chart(document.getElementById('funnelChart'), {
+    type: 'bar',
+    data: { labels: funnelLabels.length > 0 ? funnelLabels : ['Veri yok'], datasets: [{ label: 'Ayrılan', data: funnelValues.length > 0 ? funnelValues : [0],
+        backgroundColor: funnelColors.length > 0 ? funnelColors : ['#e2e8f0'],
+        borderRadius: 6, borderSkipped: false, barPercentage: 0.6 }] },
+    options: { responsive: true, maintainAspectRatio: false, indexAxis: 'y',
+        plugins: { legend: { display: false } },
+        scales: { x: { beginAtZero: true, grid: { color: '#f1f5f9' }, ticks: { stepSize: 1 } }, y: { grid: { display: false }, ticks: { font: { size: 11 } } } } }
+});
+
+// ── City Bar Chart ──
 const cityData = {{ city_distribution | tojson }};
 new Chart(document.getElementById('cityChart'), {
     type: 'bar',

@@ -1,0 +1,237 @@
+{% extends "base.html" %}
+{% set active_page = "recontact" %}
+{% block title %}Tekrar Aranacaklar - Digiturk CRM{% endblock %}
+{% block page_title %}Tekrar Aranacaklar{% endblock %}
+
+{% block extra_head %}
+<style>
+.kpi-card {
+    background: var(--bg-card);
+    border: 1px solid var(--border-color);
+    border-radius: 14px;
+    padding: 24px;
+    text-align: center;
+    transition: all 0.3s ease;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.04);
+}
+.kpi-card:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 8px 24px rgba(0,0,0,0.08);
+}
+.kpi-card .kpi-value {
+    font-size: 2.4rem;
+    font-weight: 800;
+    line-height: 1;
+    margin-bottom: 6px;
+}
+.kpi-card .kpi-label {
+    font-size: 0.8rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    color: var(--text-muted);
+}
+.kpi-card.kpi-high { border-top: 3px solid #ef4444; }
+.kpi-card.kpi-high .kpi-value { color: #ef4444; }
+.kpi-card.kpi-medium { border-top: 3px solid #f59e0b; }
+.kpi-card.kpi-medium .kpi-value { color: #f59e0b; }
+.kpi-card.kpi-low { border-top: 3px solid #94a3b8; }
+.kpi-card.kpi-low .kpi-value { color: #94a3b8; }
+
+.filter-tabs {
+    display: flex;
+    gap: 8px;
+    margin-bottom: 20px;
+}
+.filter-tab {
+    padding: 8px 20px;
+    border-radius: 8px;
+    font-size: 0.82rem;
+    font-weight: 600;
+    cursor: pointer;
+    border: 1px solid var(--border-color);
+    background: var(--bg-card);
+    color: var(--text-secondary);
+    transition: all 0.2s;
+}
+.filter-tab:hover {
+    border-color: var(--accent-blue);
+    color: var(--accent-blue);
+}
+.filter-tab.active {
+    background: var(--accent-blue);
+    color: #fff;
+    border-color: var(--accent-blue);
+}
+
+.recontact-row { transition: all 0.2s; }
+.recontact-row:hover { background: #fefce8 !important; }
+.recontact-row td:first-child { border-left: 3px solid transparent; }
+.recontact-row.priority-high td:first-child { border-left-color: #ef4444; }
+.recontact-row.priority-medium td:first-child { border-left-color: #f59e0b; }
+.recontact-row.priority-low td:first-child { border-left-color: #94a3b8; }
+
+.score-bar {
+    width: 60px;
+    height: 6px;
+    background: #f1f5f9;
+    border-radius: 3px;
+    overflow: hidden;
+    display: inline-block;
+    vertical-align: middle;
+}
+.score-bar-fill {
+    height: 100%;
+    border-radius: 3px;
+    transition: width 1s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.empty-state {
+    text-align: center;
+    padding: 60px 20px;
+}
+.empty-state i {
+    font-size: 4rem;
+    color: #e2e8f0;
+    margin-bottom: 16px;
+}
+.empty-state h5 {
+    color: var(--text-secondary);
+    font-weight: 600;
+    margin-bottom: 8px;
+}
+.empty-state p {
+    color: var(--text-muted);
+    font-size: 0.9rem;
+}
+</style>
+{% endblock %}
+
+{% block content %}
+<!-- KPI Cards -->
+<div class="row g-3 mb-4">
+    <div class="col-md-4">
+        <div class="kpi-card kpi-high">
+            <div class="kpi-value">{{ high_count }}</div>
+            <div class="kpi-label">Yuksek Oncelik</div>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="kpi-card kpi-medium">
+            <div class="kpi-value">{{ medium_count }}</div>
+            <div class="kpi-label">Orta Oncelik</div>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="kpi-card kpi-low">
+            <div class="kpi-value">{{ low_count }}</div>
+            <div class="kpi-label">Dusuk Oncelik</div>
+        </div>
+    </div>
+</div>
+
+<!-- Filter Tabs -->
+<div class="filter-tabs">
+    <div class="filter-tab active" data-filter="all">Tumu ({{ total_count }})</div>
+    <div class="filter-tab" data-filter="high">Yuksek ({{ high_count }})</div>
+    <div class="filter-tab" data-filter="medium">Orta ({{ medium_count }})</div>
+    <div class="filter-tab" data-filter="low">Dusuk ({{ low_count }})</div>
+</div>
+
+<!-- Table -->
+<div class="card">
+    <div class="card-body p-0">
+        {% if recontact_calls %}
+        <table class="table table-hover mb-0">
+            <thead>
+                <tr>
+                    <th>Musteri / Telefon</th>
+                    <th>Skor</th>
+                    <th>Oncelik</th>
+                    <th>Sebep</th>
+                    <th>AI Ozet</th>
+                    <th>Tarih</th>
+                    <th>Detay</th>
+                </tr>
+            </thead>
+            <tbody id="recontact-body">
+                {% for cs in recontact_calls %}
+                <tr class="recontact-row priority-{{ cs.recontact_priority }}" data-priority="{{ cs.recontact_priority }}">
+                    <td>
+                        {% if cs.customer %}
+                            <div><a href="/admin/customers/{{ cs.customer.id }}" style="font-weight:600;color:var(--text-primary);text-decoration:none;">{{ cs.customer.name }} {{ cs.customer.surname }}</a></div>
+                            <small class="text-muted"><code>{{ cs.customer.phone or cs.caller_phone or '-' }}</code></small>
+                        {% else %}
+                            <code>{{ cs.caller_phone or 'Bilinmiyor' }}</code>
+                        {% endif %}
+                    </td>
+                    <td>
+                        <div class="d-flex align-items-center gap-2">
+                            <div class="score-bar">
+                                <div class="score-bar-fill" data-width="{{ cs.recontact_score }}" style="width:0%;background:{% if cs.recontact_score >= 70 %}#ef4444{% elif cs.recontact_score >= 40 %}#f59e0b{% else %}#94a3b8{% endif %};"></div>
+                            </div>
+                            <small style="font-weight:600;">{{ cs.recontact_score }}</small>
+                        </div>
+                    </td>
+                    <td>
+                        <span class="badge {% if cs.recontact_priority == 'high' %}bg-danger{% elif cs.recontact_priority == 'medium' %}bg-warning text-dark{% else %}bg-secondary{% endif %}">
+                            {% if cs.recontact_priority == 'high' %}Yuksek{% elif cs.recontact_priority == 'medium' %}Orta{% else %}Dusuk{% endif %}
+                        </span>
+                    </td>
+                    <td class="text-muted" style="max-width:250px;">{{ cs.recontact_reason or '-' }}</td>
+                    <td class="text-muted" style="max-width:300px;">
+                        {% if cs.conversation_summary %}
+                            <span title="{{ cs.conversation_summary }}">{{ cs.conversation_summary[:80] }}{% if cs.conversation_summary|length > 80 %}...{% endif %}</span>
+                        {% else %}
+                            -
+                        {% endif %}
+                    </td>
+                    <td class="text-muted" style="white-space:nowrap;">{{ cs.started_at.strftime('%d.%m.%Y %H:%M') if cs.started_at else '-' }}</td>
+                    <td>
+                        <a href="/admin/calls/{{ cs.id }}" class="btn-glass" style="font-size:0.75rem;padding:4px 10px;">
+                            <i class="bi bi-eye"></i> Gor
+                        </a>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+        {% else %}
+        <div class="empty-state">
+            <i class="bi bi-check-circle"></i>
+            <h5>Tekrar aranacak musteri bulunmuyor</h5>
+            <p>Tum musteriler basariyla tamamlandi veya henuz veri girilmedi.</p>
+        </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+// Filter tabs
+document.querySelectorAll('.filter-tab').forEach(tab => {
+    tab.addEventListener('click', function() {
+        document.querySelectorAll('.filter-tab').forEach(t => t.classList.remove('active'));
+        this.classList.add('active');
+        const filter = this.dataset.filter;
+        document.querySelectorAll('.recontact-row').forEach(row => {
+            if (filter === 'all' || row.dataset.priority === filter) {
+                row.style.display = '';
+            } else {
+                row.style.display = 'none';
+            }
+        });
+    });
+});
+
+// Animate score bars on load
+document.addEventListener('DOMContentLoaded', function() {
+    setTimeout(function() {
+        document.querySelectorAll('.score-bar-fill').forEach(bar => {
+            bar.style.width = bar.dataset.width + '%';
+        });
+    }, 100);
+});
+</script>
+{% endblock %}

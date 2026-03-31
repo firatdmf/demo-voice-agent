@@ -1,0 +1,167 @@
+{% extends "base.html" %}
+{% set active_page = "settings" %}
+
+{% block title %}Ayarlar - Digiturk CRM{% endblock %}
+{% block page_title %}Ayarlar{% endblock %}
+
+{% block content %}
+<div class="row g-4">
+    <div class="col-12">
+
+        <!-- AI Ses Ayarları -->
+        <div class="card mb-4">
+            <div class="card-header d-flex align-items-center gap-2">
+                <i class="bi bi-cpu-fill" style="color:var(--accent-purple)"></i> AI Ses Ayarları
+            </div>
+            <div class="card-body">
+                <div class="row g-3">
+                    <div class="col-md-4">
+                        <label class="form-label">Gemini Model</label>
+                        <input type="text" class="form-control" value="{{ settings.gemini_model }}" readonly>
+                        <small style="color:var(--text-muted);font-size:0.72rem">Kullanılan AI ses modeli</small>
+                    </div>
+                    <div class="col-md-4">
+                        <label class="form-label">Ses</label>
+                        <input type="text" class="form-control" value="{{ settings.gemini_voice }}" readonly>
+                        <small style="color:var(--text-muted);font-size:0.72rem">AI ses profili adı</small>
+                    </div>
+                    <div class="col-md-4">
+                        <label class="form-label">Dil</label>
+                        <input type="text" class="form-control" value="{{ settings.language }}" readonly>
+                        <small style="color:var(--text-muted);font-size:0.72rem">Konuşma dili kodu</small>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Görüşme Ayarları -->
+        <div class="card mb-4">
+            <div class="card-header d-flex align-items-center gap-2">
+                <i class="bi bi-telephone-fill" style="color:var(--accent-blue)"></i> Görüşme Ayarları
+            </div>
+            <div class="card-body">
+                <div class="row g-4">
+                    <div class="col-md-6">
+                        <div class="form-check form-switch mb-3">
+                            <input class="form-check-input" type="checkbox" id="greetingEnabled" disabled
+                                   {% if settings.greeting_enabled == 'true' %}checked{% endif %}>
+                            <label class="form-check-label" for="greetingEnabled" style="font-weight:500;font-size:0.85rem">
+                                Otomatik Karşılama
+                            </label>
+                        </div>
+                        <small style="color:var(--text-muted);font-size:0.72rem">Gelen aramalarda otomatik karşılama mesajı</small>
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label">Maksimum Görüşme Süresi (saniye)</label>
+                        <input type="number" class="form-control" value="{{ settings.max_call_duration }}" readonly>
+                        <small style="color:var(--text-muted);font-size:0.72rem">Bir görüşmenin en uzun süresi</small>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="form-check form-switch mb-3">
+                            <input class="form-check-input" type="checkbox" id="smsEnabled" disabled
+                                   {% if settings.sms_enabled == 'true' %}checked{% endif %}>
+                            <label class="form-check-label" for="smsEnabled" style="font-weight:500;font-size:0.85rem">
+                                SMS Gönderimi
+                            </label>
+                        </div>
+                        <small style="color:var(--text-muted);font-size:0.72rem">Başvuru sonrası SMS ile bilgilendirme</small>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="form-check form-switch mb-3">
+                            <input class="form-check-input" type="checkbox" id="autoAnalysis" disabled
+                                   {% if settings.auto_analysis == 'true' %}checked{% endif %}>
+                            <label class="form-check-label" for="autoAnalysis" style="font-weight:500;font-size:0.85rem">
+                                Otomatik AI Analizi
+                            </label>
+                        </div>
+                        <small style="color:var(--text-muted);font-size:0.72rem">Görüşme sonrası otomatik AI analizi oluşturma</small>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Bildirim Ayarları -->
+        <div class="card mb-4">
+            <div class="card-header d-flex align-items-center gap-2">
+                <i class="bi bi-bell-fill" style="color:var(--accent-orange)"></i> Bildirim Ayarları
+            </div>
+            <div class="card-body">
+                <div class="row g-4">
+                    <div class="col-md-4">
+                        <div class="form-check form-switch mb-3">
+                            <input class="form-check-input" type="checkbox" id="emailNotif" disabled checked>
+                            <label class="form-check-label" for="emailNotif" style="font-weight:500;font-size:0.85rem">
+                                Email Bildirimleri
+                            </label>
+                        </div>
+                        <small style="color:var(--text-muted);font-size:0.72rem">Genel email bildirim tercihi</small>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="form-check form-switch mb-3">
+                            <input class="form-check-input" type="checkbox" id="newAppNotif" disabled checked>
+                            <label class="form-check-label" for="newAppNotif" style="font-weight:500;font-size:0.85rem">
+                                Yeni Başvuru Bildirimi
+                            </label>
+                        </div>
+                        <small style="color:var(--text-muted);font-size:0.72rem">Yeni başvuru geldiğinde bildirim</small>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="form-check form-switch mb-3">
+                            <input class="form-check-input" type="checkbox" id="recontactNotif" disabled checked>
+                            <label class="form-check-label" for="recontactNotif" style="font-weight:500;font-size:0.85rem">
+                                Tekrar Aranacak Uyarısı
+                            </label>
+                        </div>
+                        <small style="color:var(--text-muted);font-size:0.72rem">Tekrar aranması gereken müşteri uyarısı</small>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Sistem Bilgileri -->
+        <div class="card">
+            <div class="card-header d-flex align-items-center gap-2">
+                <i class="bi bi-hdd-stack-fill" style="color:var(--accent-green)"></i> Sistem Bilgileri
+            </div>
+            <div class="card-body">
+                <div class="row g-3">
+                    <div class="col-md-3">
+                        <label class="form-label">Python Versiyonu</label>
+                        <div class="d-flex align-items-center gap-2" style="font-size:0.85rem;color:var(--text-secondary);font-weight:500">
+                            <i class="bi bi-filetype-py" style="color:var(--accent-blue)"></i>
+                            {{ python_version }}
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <label class="form-label">Sunucu Durumu</label>
+                        <div class="d-flex align-items-center gap-2" style="font-size:0.85rem;font-weight:500">
+                            <span style="width:8px;height:8px;background:var(--accent-green);border-radius:50%;display:inline-block;box-shadow:0 0 6px rgba(16,185,129,0.4)"></span>
+                            <span style="color:#059669">Aktif</span>
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <label class="form-label">Veritabanı Bağlantısı</label>
+                        <div class="d-flex align-items-center gap-2" style="font-size:0.85rem;font-weight:500">
+                            <span style="width:8px;height:8px;background:var(--accent-green);border-radius:50%;display:inline-block;box-shadow:0 0 6px rgba(16,185,129,0.4)"></span>
+                            <span style="color:#059669">Aktif</span>
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <label class="form-label">API Anahtarları</label>
+                        <div class="d-flex align-items-center gap-2" style="font-size:0.85rem;font-weight:500">
+                            {% if settings.gemini_model %}
+                            <span style="width:8px;height:8px;background:var(--accent-green);border-radius:50%;display:inline-block;box-shadow:0 0 6px rgba(16,185,129,0.4)"></span>
+                            <span style="color:#059669">Gemini: Aktif</span>
+                            {% else %}
+                            <span style="width:8px;height:8px;background:var(--accent-red);border-radius:50%;display:inline-block;box-shadow:0 0 6px rgba(239,68,68,0.4)"></span>
+                            <span style="color:#dc2626">Gemini: Pasif</span>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+    </div>
+</div>
+{% endblock %}

@@ -25,6 +25,7 @@ class Package(Base):
     team_required = Column(Boolean, default=False)
     teams_supported = Column(JSON, default=list)
     notes = Column(JSON, default=list)
+    features = Column(JSON, default=list)  # ["Sinema Paketi", "beIN CONNECT", "Dizi Paketi"]
     is_active = Column(Boolean, default=True)
     created_at = Column(DateTime(timezone=True), default=utcnow)
     updated_at = Column(DateTime(timezone=True), default=utcnow, onupdate=utcnow)
@@ -60,8 +61,12 @@ class Customer(Base):
     building_no = Column(String(20))
     apartment_no = Column(String(20))
     address_freeform = Column(Text)
-    ai_notes = Column(Text)  # AI tarafından oluşturulan müşteri analizi
-    ai_analysis_at = Column(DateTime(timezone=True))  # Son analiz tarihi
+    total_calls = Column(Integer, default=0)
+    last_call_at = Column(DateTime(timezone=True))
+    customer_segment = Column(String(20))  # new / returning / converted / lost
+    preferred_team = Column(String(100))
+    ai_notes = Column(Text)
+    ai_analysis_at = Column(DateTime(timezone=True))
     created_at = Column(DateTime(timezone=True), default=utcnow)
 
     applications = relationship("Application", back_populates="customer")
@@ -104,6 +109,15 @@ class CallSession(Base):
     started_at = Column(DateTime(timezone=True), default=utcnow)
     ended_at = Column(DateTime(timezone=True))
     status = Column(String(20), default="active")  # active / completed / failed / abused
+    duration_seconds = Column(Integer)
+    channel = Column(String(20))  # browser / twilio / api
+    customer_sentiment = Column(String(20))  # positive / neutral / negative / angry
+    dropped_at_state = Column(String(50))
+    conversation_transcript = Column(Text)
+    recontact_score = Column(Integer)
+    recontact_priority = Column(String(20))
+    recontact_reason = Column(Text)
+    ai_call_summary = Column(Text)
 
     customer = relationship("Customer", back_populates="call_sessions")
     application = relationship("Application", back_populates="call_sessions")

@@ -1,0 +1,102 @@
+<div class="col-md-6 col-lg-4 package-card" id="package-{{ pkg.id }}" style="animation: fadeIn 0.3s ease-out;">
+    <div class="card h-100 {{ 'opacity-50' if not pkg.is_active }}" style="border-radius:14px;overflow:hidden;transition:all 0.3s ease;">
+        <div class="card-header d-flex justify-content-between align-items-center" style="background:transparent;border-bottom:1px solid var(--border-color);padding:16px 20px;">
+            <div>
+                <strong style="font-size:1rem;">{{ pkg.name }}</strong>
+                <div class="mt-1">
+                    <span class="badge" style="background:#eff6ff;color:#3b82f6;font-size:0.7rem;border:1px solid #bfdbfe;">
+                        {% if pkg.category == 'kampanyali_paketler' %}Kampanyalı
+                        {% elif pkg.category == 'kutulu_paketler' %}Kutulu
+                        {% elif pkg.category == 'internet_paketleri' %}İnternet
+                        {% else %}{{ pkg.category }}{% endif %}
+                    </span>
+                    <span class="badge ms-1" style="background:{{ '#ecfdf5' if pkg.delivery == 'kutusuz' else '#f8fafc' }};color:{{ '#059669' if pkg.delivery == 'kutusuz' else '#475569' }};font-size:0.7rem;border:1px solid {{ '#a7f3d0' if pkg.delivery == 'kutusuz' else '#e2e8f0' }};">
+                        <i class="bi bi-box{{ '-seam' if pkg.delivery == 'kutulu' else '' }} me-1"></i>{{ pkg.delivery|capitalize }}
+                    </span>
+                </div>
+            </div>
+            {% if pkg.is_active %}
+            <span class="badge" style="background:#ecfdf5;color:#059669;border:1px solid #a7f3d0;padding:5px 10px;">Aktif</span>
+            {% else %}
+            <span class="badge" style="background:#f8fafc;color:#64748b;border:1px solid #e2e8f0;padding:5px 10px;">Pasif</span>
+            {% endif %}
+        </div>
+        <div class="card-body" style="padding:20px;">
+            <p class="mb-2" style="font-size:0.78rem;color:var(--text-muted);">ID: <code>{{ pkg.package_id }}</code></p>
+
+            {% if pkg.platform %}
+            <p class="mb-2" style="font-size:0.85rem;color:var(--text-secondary);">
+                <i class="bi bi-display me-1"></i>{{ pkg.platform }}
+            </p>
+            {% endif %}
+
+            {% if pkg.team_required and pkg.teams_supported %}
+            <div class="mb-3">
+                {% for team in pkg.teams_supported %}
+                <span class="badge me-1 mb-1" style="background:rgba(139,92,246,0.1);color:#8b5cf6;border:1px solid rgba(139,92,246,0.2);font-size:0.7rem;padding:4px 8px;">
+                    <i class="bi bi-people-fill me-1"></i>{{ team }}
+                </span>
+                {% endfor %}
+            </div>
+            {% endif %}
+
+            {% if pkg.features %}
+            <div class="mb-3">
+                {% for feature in pkg.features %}
+                <span class="badge me-1 mb-1" style="background:rgba(6,182,212,0.1);color:#0891b2;border:1px solid rgba(6,182,212,0.2);font-size:0.7rem;padding:4px 8px;border-radius:6px;">
+                    <i class="bi bi-star-fill me-1" style="font-size:0.6rem;"></i>{{ feature }}
+                </span>
+                {% endfor %}
+            </div>
+            {% endif %}
+
+            {% if pkg.pricing %}
+            <div style="background:#f8fafc;border-radius:8px;padding:12px;margin-top:8px;">
+                <div style="font-size:0.72rem;text-transform:uppercase;letter-spacing:0.5px;color:var(--text-muted);font-weight:600;margin-bottom:8px;">Fiyatlandırma</div>
+                {% for price in pkg.pricing %}
+                <div class="d-flex justify-content-between align-items-center {% if not loop.last %}mb-1{% endif %}">
+                    <span style="font-size:0.8rem;color:var(--text-secondary);">
+                        {% if price.payment_type == 'credit_card_installment_12' %}KK 12 Taksit
+                        {% elif price.payment_type == 'invoiced' %}Faturalı
+                        {% elif price.payment_type == 'monthly' %}Aylık
+                        {% else %}{{ price.payment_type }}{% endif %}
+                    </span>
+                    <strong style="font-size:0.85rem;color:var(--text-primary);">{{ price.amount_monthly }} TL/ay</strong>
+                </div>
+                {% endfor %}
+            </div>
+            {% endif %}
+
+            {% if pkg.notes %}
+            <div class="mt-3">
+                {% for note in pkg.notes %}
+                <div style="font-size:0.78rem;color:var(--text-muted);"><i class="bi bi-info-circle me-1"></i>{{ note }}</div>
+                {% endfor %}
+            </div>
+            {% endif %}
+        </div>
+        <div class="card-footer d-flex justify-content-between" style="background:transparent;border-top:1px solid var(--border-color);padding:12px 20px;">
+            <div class="d-flex gap-2">
+                <button class="btn btn-sm btn-glass" style="border-radius:8px;font-size:0.8rem;"
+                        onclick="openEditModal('{{ pkg.id }}', '{{ pkg.package_id }}', '{{ pkg.name }}', '{{ pkg.category }}', '{{ pkg.delivery }}', '{{ pkg.platform or '' }}', '{{ pkg.team_required|int }}', '{{ pkg.teams_supported|join(',') if pkg.teams_supported else '' }}', '{{ pkg.features|join(',') if pkg.features else '' }}', '{{ pkg.pricing[0].amount_monthly if pkg.pricing and pkg.pricing|length > 0 else '' }}', '{{ pkg.pricing[1].amount_monthly if pkg.pricing and pkg.pricing|length > 1 else '' }}', '{{ pkg.pricing[2].amount_monthly if pkg.pricing and pkg.pricing|length > 2 else '' }}')">
+                    <i class="bi bi-pencil-square me-1"></i>Düzenle
+                </button>
+                <button hx-delete="/admin/packages/{{ pkg.id }}/delete-htmx"
+                        hx-target="closest .package-card"
+                        hx-swap="outerHTML swap:0.3s"
+                        hx-confirm="'{{ pkg.name }}' paketini silmek istediğinizden emin misiniz?"
+                        class="btn btn-sm btn-outline-danger" style="border-radius:8px;font-size:0.8rem;">
+                    <i class="bi bi-trash me-1"></i>Sil
+                </button>
+            </div>
+            <button hx-post="/admin/packages/{{ pkg.id }}/toggle-htmx"
+                    hx-swap="outerHTML"
+                    hx-target="closest .package-card"
+                    class="btn btn-sm {{ 'btn-outline-danger' if pkg.is_active else 'btn-outline-success' }}"
+                    style="border-radius:8px;font-size:0.8rem;">
+                <i class="bi bi-{{ 'pause-circle' if pkg.is_active else 'play-circle' }} me-1"></i>
+                {{ 'Pasif Yap' if pkg.is_active else 'Aktif Yap' }}
+            </button>
+        </div>
+    </div>
+</div>

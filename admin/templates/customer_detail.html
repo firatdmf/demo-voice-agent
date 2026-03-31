@@ -148,7 +148,10 @@
             <thead>
                 <tr>
                     <th>Tarih</th>
+                    <th>Süre</th>
+                    <th>Kanal</th>
                     <th>Durum</th>
+                    <th>Duygu</th>
                     <th>Özet</th>
                     <th></th>
                 </tr>
@@ -157,8 +160,25 @@
                 {% for call in customer.call_sessions %}
                 <tr>
                     <td class="text-muted">{{ call.started_at.strftime('%d.%m.%Y %H:%M') if call.started_at else '-' }}</td>
+                    <td class="text-muted">
+                        {% if call.duration_seconds is not none %}
+                            {{ (call.duration_seconds // 60) }}dk {{ (call.duration_seconds % 60) }}sn
+                        {% else %}-{% endif %}
+                    </td>
+                    <td>
+                        {% if call.channel == 'browser' %}<span class="badge" style="background:rgba(99,102,241,0.08);color:#6366f1;border:1px solid rgba(99,102,241,0.2);font-size:0.7rem;">Tarayıcı</span>
+                        {% elif call.channel == 'twilio' %}<span class="badge" style="background:rgba(16,185,129,0.08);color:#059669;border:1px solid rgba(16,185,129,0.2);font-size:0.7rem;">Telefon</span>
+                        {% else %}<span class="text-muted">-</span>{% endif %}
+                    </td>
                     <td><span class="badge-status badge-status-{{ call.status }}">{{ call.status | status_tr }}</span></td>
-                    <td><small class="text-muted">{{ (call.conversation_summary or '-')[:100] }}{% if call.conversation_summary and call.conversation_summary|length > 100 %}...{% endif %}</small></td>
+                    <td>
+                        {% if call.customer_sentiment == 'positive' %}<i class="bi bi-emoji-smile-fill text-success"></i>
+                        {% elif call.customer_sentiment == 'negative' %}<i class="bi bi-emoji-frown-fill text-danger"></i>
+                        {% elif call.customer_sentiment == 'angry' %}<i class="bi bi-emoji-angry-fill text-danger"></i>
+                        {% elif call.customer_sentiment == 'neutral' %}<i class="bi bi-emoji-neutral-fill text-muted"></i>
+                        {% else %}-{% endif %}
+                    </td>
+                    <td><small class="text-muted">{{ (call.conversation_summary or call.ai_call_summary or '-')[:80] }}{% if (call.conversation_summary or call.ai_call_summary or '')|length > 80 %}...{% endif %}</small></td>
                     <td><a href="/admin/calls/{{ call.id }}" class="btn-glass btn btn-sm"><i class="bi bi-eye"></i></a></td>
                 </tr>
                 {% endfor %}
